@@ -20,6 +20,7 @@ export interface DatabaseState {
   rows: Row[];
   selectedRows: string[];
   addColumn: () => void;
+  addCustomColumn: (column: Omit<Column, 'id'>) => void;
   addRow: () => void;
   updateCell: (rowId: string, columnId: string, value: string) => void;
   toggleRowSelection: (rowId: string) => void;

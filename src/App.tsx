@@ -86,18 +86,18 @@ function App() {
 
       {/* Main content */}
       <main
-        className={`transition-all duration-300 ease-in-out ${
+        className={`transition-all duration-300 ease-in-out h-screen flex flex-col ${
           isSidebarOpen ? 'lg:pl-64' : ''
         }`}
       >
-        <div className="px-4 sm:px-6 lg:px-8 py-8">
-          <div className="bg-gray-800 rounded-lg shadow-lg overflow-hidden">
-            <div className="px-6 py-8">
-              <h2 className="text-2xl font-semibold text-gray-100 mb-6">
-                {activeSection} Module
-              </h2>
-              {renderContent()}
-            </div>
+        <div className="flex-1 flex flex-col">
+          <div className="px-4 sm:px-6 lg:px-8 py-4">
+            <h2 className="text-2xl font-semibold text-gray-100 mb-4">
+              {activeSection} Module
+            </h2>
+          </div>
+          <div className="flex-1 px-4 sm:px-6 lg:px-8 pb-8 flex">
+            {renderContent()}
           </div>
         </div>
       </main>

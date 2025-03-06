@@ -1,15 +1,17 @@
 import React from 'react';
-import { GripVertical, Plus } from 'lucide-react';
+import { GripVertical } from 'lucide-react';
 import { Column } from './types';
+import { ColumnPicker } from './ColumnPicker';
 
 interface DatabaseHeaderProps {
   columns: Column[];
   onAddColumn: () => void;
+  onAddCustomColumn: (column: Omit<Column, 'id'>) => void;
 }
 
-export function DatabaseHeader({ columns, onAddColumn }: DatabaseHeaderProps) {
+export function DatabaseHeader({ columns, onAddColumn, onAddCustomColumn }: DatabaseHeaderProps) {
   return (
-    <div className="flex border-b border-gray-700 bg-gray-900">
+    <div className="flex border-b border-gray-700 bg-gray-900 shadow-sm">
       <div className="w-10 flex-shrink-0 border-r border-gray-700" />
       {columns.map((column) => (
         <div
@@ -20,13 +22,9 @@ export function DatabaseHeader({ columns, onAddColumn }: DatabaseHeaderProps) {
           <span className="text-sm font-medium text-gray-200">{column.name}</span>
         </div>
       ))}
-      <button
-        onClick={onAddColumn}
-        className="flex items-center gap-2 px-3 py-2 text-gray-400 hover:text-gray-200 hover:bg-gray-800"
-      >
-        <Plus className="h-4 w-4" />
-        <span className="text-sm">New Column</span>
-      </button>
+      <div className="ml-auto">
+        <ColumnPicker onAddColumn={onAddCustomColumn} />
+      </div>
     </div>
   );
 }

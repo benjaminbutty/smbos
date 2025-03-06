@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { DatabaseState } from './types';
+import { DatabaseState, Column } from './types';
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
@@ -37,6 +37,32 @@ export const useDatabase = create<DatabaseState>((set) => ({
             id: generateId(),
             content: '',
             type: 'text',
+          },
+        },
+      }));
+
+      return {
+        columns: [...state.columns, newColumn],
+        rows: updatedRows,
+      };
+    }),
+
+  addCustomColumn: (column) =>
+    set((state) => {
+      const newColumn = {
+        id: generateId(),
+        name: column.name,
+        type: column.type,
+      };
+
+      const updatedRows = state.rows.map((row) => ({
+        ...row,
+        cells: {
+          ...row.cells,
+          [newColumn.id]: {
+            id: generateId(),
+            content: '',
+            type: column.type,
           },
         },
       }));
