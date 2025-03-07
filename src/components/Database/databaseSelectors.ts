@@ -8,7 +8,6 @@ export function useActiveTable() {
     activeTableId, 
     selectedRows,
     addColumn,
-    addCustomColumn,
     addRow,
     updateCell,
     toggleRowSelection 
@@ -29,7 +28,7 @@ export function useActiveTable() {
       if (activeTableId) addColumn(activeTableId);
     },
     addCustomColumn: (column: Omit<Column, 'id'>) => {
-      if (activeTableId) addCustomColumn(activeTableId, column);
+      if (activeTableId) addColumn(activeTableId, column);
     },
     addRow: () => {
       if (activeTableId) addRow(activeTableId);

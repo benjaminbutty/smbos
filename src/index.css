@@ -3,27 +3,103 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 47.4% 11.2%;
+    --border: 214.3 31.8% 91.4%;
+  }
+
+  .dark {
+    --background: 224 71% 4%;
+    --foreground: 213 31% 91%;
+    --border: 216 34% 17%;
+  }
+  
+  * {
+    @apply border-gray-200 dark:border-gray-700;
+  }
+  
   body {
-    @apply bg-gray-900;
+    @apply bg-background text-foreground text-sm;
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
 
-.prose {
-  @apply text-gray-100;
-}
-
-.prose p {
-  @apply m-0;
-}
-
+/* Database Cell Editor Styles */
 .ProseMirror {
-  @apply outline-none;
+  @apply outline-none text-gray-900 dark:text-gray-100;
+  min-height: 1.5rem;
+  width: 100%;
+}
+
+.ProseMirror p {
+  @apply m-0 text-gray-900 dark:text-gray-100;
 }
 
 .ProseMirror p.is-editor-empty:first-child::before {
-  @apply text-gray-500;
+  @apply text-gray-400 dark:text-gray-500;
   content: attr(data-placeholder);
   float: left;
   pointer-events: none;
   height: 0;
+}
+
+/* Table cell transitions */
+.database-cell-transition {
+  transition: background-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  @apply w-1.5 h-1.5;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 dark:bg-gray-700 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-400 dark:bg-gray-600;
+}
+
+/* Table row hover and selection states */
+.table-row {
+  @apply transition-colors duration-100;
+}
+
+.table-row:hover .row-actions {
+  @apply opacity-100;
+}
+
+.row-actions {
+  @apply opacity-0 transition-opacity duration-100;
+}
+
+/* Tag styles for cell values */
+.cell-tag {
+  @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium;
+}
+
+.cell-tag-blue {
+  @apply bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300;
+}
+
+.cell-tag-green {
+  @apply bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300;
+}
+
+.cell-tag-amber {
+  @apply bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300;
+}
+
+.cell-tag-red {
+  @apply bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300;
+}
+
+.cell-tag-purple {
+  @apply bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300;
 }
