@@ -5,7 +5,7 @@ import { DatabaseTable } from './components/Database/DatabaseTable';
 import { useDatabase } from './components/Database/useDatabase';
 import { AuthPage } from './pages/Auth';
 import { supabase } from './lib/supabase';
-import { AuthProvider } from './contexts/AuthContext';
+import { useAuth } from './contexts/AuthContext';
 
 type NavItem = {
   name: string;
@@ -226,24 +226,21 @@ function DashboardLayout() {
 }
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
-
+  const { user, loading: authLoading } = useAuth();
+  const { fetchUserTables } = useDatabase();
+  
+  // Use user from useAuth hook to determine if authenticated
+  const isAuthenticated = !!user;
+  
   useEffect(() => {
-    // Check initial auth state
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setIsAuthenticated(!!session);
-    });
-
-    // Subscribe to auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsAuthenticated(!!session);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
+    if (user) {
+      // When user is authenticated, fetch their tables
+      fetchUserTables();
+    }
+  }, [user, fetchUserTables]);
+  
   // Show loading state while checking auth
-  if (isAuthenticated === null) {
+  if (authLoading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>

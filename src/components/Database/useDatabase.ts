@@ -1,7 +1,6 @@
-// src/components/Database/useDatabase.ts
 import { create } from 'zustand';
 import { supabase } from '../../lib/supabase';
-import { Column, Row, Cell } from './types';
+import { Column, Row, Cell, Table } from './types';
 
 export interface DatabaseState {
   tables: Record<string, Table>;
@@ -38,7 +37,6 @@ export const useDatabase = create<DatabaseState>((set, get) => ({
   fetchUserTables: async () => {
     set({ isLoading: true, error: null });
     try {
-      // Fetch tables
       const { data: tablesData, error: tablesError } = await supabase
         .from('database_tables')
         .select('*')
@@ -47,14 +45,11 @@ export const useDatabase = create<DatabaseState>((set, get) => ({
       if (tablesError) throw tablesError;
       
       const tables: Record<string, Table> = {};
-      let activeTableId = null;
+      let activeTableId = get().activeTableId;
       
-      // Process each table
       for (const tableData of tablesData) {
-        // Set the first table as active if none is active
         if (!activeTableId) activeTableId = tableData.id;
         
-        // Fetch columns for this table
         const { data: columnsData, error: columnsError } = await supabase
           .from('database_columns')
           .select('*')
@@ -63,7 +58,6 @@ export const useDatabase = create<DatabaseState>((set, get) => ({
           
         if (columnsError) throw columnsError;
         
-        // Fetch rows for this table
         const { data: rowsData, error: rowsError } = await supabase
           .from('database_rows')
           .select('*')
@@ -72,10 +66,8 @@ export const useDatabase = create<DatabaseState>((set, get) => ({
           
         if (rowsError) throw rowsError;
         
-        // Get all row IDs to fetch cells
         const rowIds = rowsData.map(row => row.id);
         
-        // Fetch cells for all rows in this table
         const { data: cellsData, error: cellsError } = await supabase
           .from('database_cells')
           .select('*')
@@ -83,25 +75,22 @@ export const useDatabase = create<DatabaseState>((set, get) => ({
           
         if (cellsError) throw cellsError;
         
-        // Process data into our format
         const columns = columnsData.map(col => ({
           id: col.id,
           name: col.name,
-          type: col.type,
+          type: col.type as 'text' | 'number',
         }));
         
         const rows = rowsData.map(row => {
-          // Get cells for this row
           const rowCells = cellsData.filter(cell => cell.row_id === row.id);
-          
-          // Convert to our cell format
           const cells: Record<string, Cell> = {};
+          
           rowCells.forEach(cell => {
             const column = columnsData.find(col => col.id === cell.column_id);
             cells[cell.column_id] = {
               id: cell.id,
-              content: cell.content,
-              type: column ? column.type : 'text',
+              content: cell.content || '',
+              type: column?.type as 'text' | 'number',
             };
           });
           
@@ -111,7 +100,6 @@ export const useDatabase = create<DatabaseState>((set, get) => ({
           };
         });
         
-        // Add this table to our tables object
         tables[tableData.id] = {
           id: tableData.id,
           name: tableData.name,
@@ -127,7 +115,7 @@ export const useDatabase = create<DatabaseState>((set, get) => ({
         selectedRows: Object.keys(tables).reduce((acc, tableId) => {
           acc[tableId] = [];
           return acc;
-        }, {}),
+        }, {} as Record<string, string[]>),
       });
       
     } catch (error) {
@@ -138,20 +126,25 @@ export const useDatabase = create<DatabaseState>((set, get) => ({
       });
     }
   },
-  
+
   createTable: async (name) => {
     set({ isLoading: true, error: null });
     try {
-      // Create table in Supabase
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData.user?.id;
+
+      if (!userId) {
+        throw new Error('User not authenticated');
+      }
+  
       const { data: tableData, error: tableError } = await supabase
         .from('database_tables')
-        .insert({ name, user_id: (await supabase.auth.getUser()).data.user?.id })
+        .insert({ name, user_id: userId })
         .select()
         .single();
         
       if (tableError) throw tableError;
       
-      // Create default columns
       const defaultColumns = [
         { table_id: tableData.id, name: 'Name', type: 'text', order: 0 },
         { table_id: tableData.id, name: 'Type', type: 'text', order: 1 },
@@ -165,7 +158,6 @@ export const useDatabase = create<DatabaseState>((set, get) => ({
         
       if (columnsError) throw columnsError;
       
-      // Create a default row
       const { data: rowData, error: rowError } = await supabase
         .from('database_rows')
         .insert({ table_id: tableData.id })
@@ -174,7 +166,6 @@ export const useDatabase = create<DatabaseState>((set, get) => ({
         
       if (rowError) throw rowError;
       
-      // Create empty cells for each column
       const cells = columnsData.map(column => ({
         row_id: rowData.id,
         column_id: column.id,
@@ -187,35 +178,27 @@ export const useDatabase = create<DatabaseState>((set, get) => ({
         
       if (cellsError) throw cellsError;
       
-      // Format data for our frontend state
-      const columns = columnsData.map(col => ({
-        id: col.id,
-        name: col.name,
-        type: col.type as 'text' | 'number',
-      }));
-      
-      const cellsObject: Record<string, Cell> = {};
-      columnsData.forEach((col, index) => {
-        cellsObject[col.id] = {
-          id: cells[index].id || `temp-${index}`,
-          content: '',
-          type: col.type as 'text' | 'number',
-        };
-      });
-      
       const newTable: Table = {
         id: tableData.id,
         name: tableData.name,
-        columns,
-        rows: [
-          {
-            id: rowData.id,
-            cells: cellsObject,
-          },
-        ],
+        columns: columnsData.map(col => ({
+          id: col.id,
+          name: col.name,
+          type: col.type as 'text' | 'number',
+        })),
+        rows: [{
+          id: rowData.id,
+          cells: columnsData.reduce((acc, col) => {
+            acc[col.id] = {
+              id: `temp-${col.id}`,
+              content: '',
+              type: col.type as 'text' | 'number',
+            };
+            return acc;
+          }, {} as Record<string, Cell>),
+        }],
       };
       
-      // Update our state
       set(state => ({
         tables: {
           ...state.tables,
@@ -237,10 +220,249 @@ export const useDatabase = create<DatabaseState>((set, get) => ({
         isLoading: false, 
         error: error instanceof Error ? error.message : 'Failed to create table' 
       });
-      return ''; // Return empty string if failed
+      return '';
     }
   },
-  
-  // Other methods would follow a similar pattern
-  // ...
+
+  setActiveTable: (tableId: string) => {
+    if (get().tables[tableId]) {
+      set({ activeTableId: tableId });
+    }
+  },
+
+  renameTable: async (tableId: string, name: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const { error } = await supabase
+        .from('database_tables')
+        .update({ name })
+        .eq('id', tableId);
+
+      if (error) throw error;
+
+      set(state => ({
+        tables: {
+          ...state.tables,
+          [tableId]: {
+            ...state.tables[tableId],
+            name,
+          },
+        },
+        isLoading: false,
+      }));
+    } catch (error) {
+      console.error('Error renaming table:', error);
+      set({ 
+        isLoading: false, 
+        error: error instanceof Error ? error.message : 'Failed to rename table' 
+      });
+    }
+  },
+
+  deleteTable: async (tableId: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const { error } = await supabase
+        .from('database_tables')
+        .delete()
+        .eq('id', tableId);
+
+      if (error) throw error;
+
+      set(state => {
+        const { [tableId]: _, ...remainingTables } = state.tables;
+        const { [tableId]: __, ...remainingSelectedRows } = state.selectedRows;
+        return {
+          tables: remainingTables,
+          selectedRows: remainingSelectedRows,
+          activeTableId: Object.keys(remainingTables)[0] || null,
+          isLoading: false,
+        };
+      });
+    } catch (error) {
+      console.error('Error deleting table:', error);
+      set({ 
+        isLoading: false, 
+        error: error instanceof Error ? error.message : 'Failed to delete table' 
+      });
+    }
+  },
+
+  addColumn: async (tableId: string, column?: Omit<Column, 'id'>) => {
+    set({ isLoading: true, error: null });
+    try {
+      const table = get().tables[tableId];
+      if (!table) throw new Error('Table not found');
+
+      const newColumn = {
+        table_id: tableId,
+        name: column?.name || 'New Column',
+        type: column?.type || 'text',
+        order: table.columns.length,
+      };
+
+      const { data: columnData, error: columnError } = await supabase
+        .from('database_columns')
+        .insert(newColumn)
+        .select()
+        .single();
+
+      if (columnError) throw columnError;
+
+      // Create cells for the new column
+      const cellInserts = table.rows.map(row => ({
+        row_id: row.id,
+        column_id: columnData.id,
+        content: '',
+      }));
+
+      const { error: cellsError } = await supabase
+        .from('database_cells')
+        .insert(cellInserts);
+
+      if (cellsError) throw cellsError;
+
+      // Update local state
+      set(state => ({
+        tables: {
+          ...state.tables,
+          [tableId]: {
+            ...table,
+            columns: [...table.columns, {
+              id: columnData.id,
+              name: columnData.name,
+              type: columnData.type as 'text' | 'number',
+            }],
+            rows: table.rows.map(row => ({
+              ...row,
+              cells: {
+                ...row.cells,
+                [columnData.id]: {
+                  id: `temp-${columnData.id}-${row.id}`,
+                  content: '',
+                  type: columnData.type as 'text' | 'number',
+                },
+              },
+            })),
+          },
+        },
+        isLoading: false,
+      }));
+    } catch (error) {
+      console.error('Error adding column:', error);
+      set({ 
+        isLoading: false, 
+        error: error instanceof Error ? error.message : 'Failed to add column' 
+      });
+    }
+  },
+
+  addRow: async (tableId: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const table = get().tables[tableId];
+      if (!table) throw new Error('Table not found');
+
+      const { data: rowData, error: rowError } = await supabase
+        .from('database_rows')
+        .insert({ table_id: tableId })
+        .select()
+        .single();
+
+      if (rowError) throw rowError;
+
+      const cells = table.columns.map(column => ({
+        row_id: rowData.id,
+        column_id: column.id,
+        content: '',
+      }));
+
+      const { error: cellsError } = await supabase
+        .from('database_cells')
+        .insert(cells);
+
+      if (cellsError) throw cellsError;
+
+      set(state => ({
+        tables: {
+          ...state.tables,
+          [tableId]: {
+            ...table,
+            rows: [...table.rows, {
+              id: rowData.id,
+              cells: table.columns.reduce((acc, column) => {
+                acc[column.id] = {
+                  id: `temp-${column.id}-${rowData.id}`,
+                  content: '',
+                  type: column.type,
+                };
+                return acc;
+              }, {} as Record<string, Cell>),
+            }],
+          },
+        },
+        isLoading: false,
+      }));
+    } catch (error) {
+      console.error('Error adding row:', error);
+      set({ 
+        isLoading: false, 
+        error: error instanceof Error ? error.message : 'Failed to add row' 
+      });
+    }
+  },
+
+  updateCell: async (tableId: string, rowId: string, columnId: string, value: string) => {
+    try {
+      const { error } = await supabase
+        .from('database_cells')
+        .update({ content: value })
+        .eq('row_id', rowId)
+        .eq('column_id', columnId);
+
+      if (error) throw error;
+
+      set(state => ({
+        tables: {
+          ...state.tables,
+          [tableId]: {
+            ...state.tables[tableId],
+            rows: state.tables[tableId].rows.map(row =>
+              row.id === rowId
+                ? {
+                    ...row,
+                    cells: {
+                      ...row.cells,
+                      [columnId]: {
+                        ...row.cells[columnId],
+                        content: value,
+                      },
+                    },
+                  }
+                : row
+            ),
+          },
+        },
+      }));
+    } catch (error) {
+      console.error('Error updating cell:', error);
+      // Don't set global error state for cell updates to avoid disrupting the UI
+    }
+  },
+
+  toggleRowSelection: (tableId: string, rowId: string) => {
+    set(state => {
+      const currentSelected = state.selectedRows[tableId] || [];
+      const newSelected = currentSelected.includes(rowId)
+        ? currentSelected.filter(id => id !== rowId)
+        : [...currentSelected, rowId];
+
+      return {
+        selectedRows: {
+          ...state.selectedRows,
+          [tableId]: newSelected,
+        },
+      };
+    });
+  },
 }));
