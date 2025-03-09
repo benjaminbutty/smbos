@@ -88,41 +88,15 @@ export function DatabaseCell({
     return cell.content;
   }, [cell.type, cell.content]);
 
-  // Render different cell types
-  const renderCellContent = () => {
-    if (isFocused) {
-      // When focused, always show the editor
-      return (
-        <EditorContent 
-          editor={editor} 
-          className="w-full h-full"
-        />
-      );
-    }
-    
-    switch (cell.type) {
-      case 'number':
-        return (
-          <div 
-            className="w-full h-full cursor-text text-right"
-            onClick={() => editor?.commands.focus()}
-          >
-            {formattedValue}
-          </div>
-        );
-      case 'text':
-      default:
-        return (
-          <div 
-            className="w-full h-full cursor-text"
-            onClick={() => editor?.commands.focus()}
-          >
-            {cell.content || (
-              <span className="text-gray-400 dark:text-gray-500">Empty</span>
-            )}
-          </div>
-        );
-    }
+  // Handle cell click - first set focused state, then focus the editor
+  const handleCellClick = () => {
+    setIsFocused(true);
+    // Use setTimeout to ensure editor is mounted before focusing
+    setTimeout(() => {
+      if (editor) {
+        editor.commands.focus();
+      }
+    }, 10);
   };
 
   return (
@@ -140,7 +114,26 @@ export function DatabaseCell({
         }
       `}
     >
-      {renderCellContent()}
+      {/* Always render the editor, but only show it when focused */}
+      <div 
+        className={isFocused ? 'block w-full h-full' : 'hidden'}
+      >
+        <EditorContent editor={editor} className="w-full h-full" />
+      </div>
+      
+      {/* Show content when not focused */}
+      {!isFocused && (
+        <div
+          className={`w-full h-full cursor-text text-white ${cell.type === 'number' ? 'text-right' : ''}`}
+          onClick={handleCellClick}
+        >
+          {cell.type === 'number' ? formattedValue : (
+            cell.content || (
+              <span className="text-gray-400 dark:text-gray-500">Empty</span>
+            )
+          )}
+        </div>
+      )}
     </div>
   );
 }

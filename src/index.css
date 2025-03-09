@@ -69,7 +69,7 @@
 .dark .ProseMirror p,
 .dark .ProseMirror div,
 .dark .ProseMirror span {
-  @apply text-gray-100;
+  @apply text-white;
 }
 
 /* Table cell transitions */

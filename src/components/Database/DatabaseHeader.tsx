@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { GripVertical, Type, Hash, DollarSign, Calendar, Settings, Edit2 } from 'lucide-react';
+import { GripVertical, Type, DollarSign, Edit2 } from 'lucide-react';
 import { Column } from './types';
 import { ColumnPicker } from './ColumnPicker';
 import { ColumnSettingsPopover } from './ColumnSettingsPopover';
@@ -27,6 +27,7 @@ export function DatabaseHeader({
 }: DatabaseHeaderProps) {
   const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
   const [editingColumnName, setEditingColumnName] = useState('');
+  const [activePopoverId, setActivePopoverId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   
   useEffect(() => {
@@ -71,6 +72,25 @@ export function DatabaseHeader({
         return <Type className="h-4 w-4 text-gray-500" />;
     }
   };
+
+  // Toggle column settings popover
+  const toggleColumnSettings = (columnId: string) => {
+    setActivePopoverId(activePopoverId === columnId ? null : columnId);
+  };
+  
+  // Close all popovers when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (activePopoverId && !(event.target as Element).closest('.column-header')) {
+        setActivePopoverId(null);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [activePopoverId]);
   
   return (
     <div className="flex border-b border-gray-700 bg-gray-900 shadow-sm">
@@ -81,10 +101,16 @@ export function DatabaseHeader({
       {columns.map((column) => (
         <div
           key={column.id}
-          className="flex items-center border-r border-gray-700 px-2 py-2 select-none relative"
+          className="flex items-center border-r border-gray-700 select-none relative"
           style={{ width: columnWidths[column.id] || 150, minWidth: 100 }}
         >
-          <div className="flex items-center gap-2 w-full group">
+          {/* Column header (clickable) */}
+          <div 
+            className={`column-header flex items-center gap-2 w-full px-2 py-2 cursor-pointer transition-colors hover:bg-gray-800 ${
+              activePopoverId === column.id ? 'bg-gray-800' : ''
+            }`}
+            onClick={() => toggleColumnSettings(column.id)}
+          >
             {/* Drag handle */}
             <GripVertical className="h-4 w-4 text-gray-500 cursor-move" />
             
@@ -102,6 +128,7 @@ export function DatabaseHeader({
                 onKeyDown={handleKeyDown}
                 className="flex-1 bg-gray-800 text-gray-200 px-1 py-0.5 text-sm rounded border border-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 autoFocus
+                onClick={(e) => e.stopPropagation()}
               />
             ) : (
               <div className="flex-1 flex items-center text-sm font-medium text-gray-200">
@@ -121,14 +148,17 @@ export function DatabaseHeader({
                 </button>
               </div>
             )}
-            
-            {/* Column settings */}
+          </div>
+          
+          {/* Column settings popover */}
+          {activePopoverId === column.id && (
             <ColumnSettingsPopover
               column={column}
               onUpdateColumn={onUpdateColumn}
               onDeleteColumn={onDeleteColumn}
+              onClose={() => setActivePopoverId(null)}
             />
-          </div>
+          )}
           
           {/* Resize handle */}
           <div
