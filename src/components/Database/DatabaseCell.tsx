@@ -103,7 +103,7 @@ export function DatabaseCell({
     <div
       ref={cellRef}
       className={`
-        min-h-[2.25rem] px-3 py-1.5 transition-colors relative database-cell-transition
+        w-full min-h-[2.25rem] h-full px-3 py-1.5 transition-colors relative database-cell-transition
         ${isSelected 
           ? 'bg-blue-50 dark:bg-blue-900/10' 
           : isFocused 
@@ -124,13 +124,15 @@ export function DatabaseCell({
       {/* Show content when not focused */}
       {!isFocused && (
         <div
-          className={`w-full h-full cursor-text text-white ${cell.type === 'number' ? 'text-right' : ''}`}
+          className={`w-full h-full cursor-text ${cell.type === 'number' ? 'text-right' : ''}`}
           onClick={handleCellClick}
         >
-          {cell.type === 'number' ? formattedValue : (
-            cell.content || (
-              <span className="text-gray-400 dark:text-gray-500">Empty</span>
-            )
+          {cell.content ? (
+            <span className="text-gray-200">
+              {cell.type === 'number' ? formattedValue : cell.content}
+            </span>
+          ) : (
+            <span className="text-gray-500">Empty</span>
           )}
         </div>
       )}

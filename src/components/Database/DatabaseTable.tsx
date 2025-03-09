@@ -37,6 +37,15 @@ export function DatabaseTable() {
   const [selectedCellPosition, setSelectedCellPosition] = useState<{rowId: string; columnId: string} | null>(null);
   const tableRef = useRef<HTMLDivElement>(null);
   
+  // Calculate total width
+  const totalTableWidth = React.useMemo(() => {
+    let total = 10; // Checkbox column width
+    columns.forEach(col => {
+      total += columnWidths[col.id] || 150;
+    });
+    return total;
+  }, [columns, columnWidths]);
+  
   // Initialize column widths
   useEffect(() => {
     if (columns.length > 0) {
@@ -215,37 +224,41 @@ export function DatabaseTable() {
         </div>
       </div>
       
-      {/* Table Headers */}
-      <DatabaseHeader 
-        columns={columns}
-        onAddColumn={handleAddColumn}
-        onAddCustomColumn={handleAddCustomColumn}
-        onUpdateColumn={handleUpdateColumn}
-        onDeleteColumn={handleDeleteColumn}
-        columnWidths={columnWidths}
-        onResizeStart={handleResizeStart}
-      />
-      
-      {/* Table Body */}
-      <div className="flex-1 overflow-auto">
-        {sortedRows.length > 0 ? (
-          sortedRows.map((row) => (
-            <DatabaseRow
-              key={row.id}
-              row={row}
-              columns={columns}
-              isSelected={tableSelectedRows.includes(row.id)}
-              onSelect={() => handleToggleRowSelection(row.id)}
-              onCellUpdate={(columnId, value) => handleUpdateCell(row.id, columnId, value)}
-              onCellFocus={(columnId) => handleCellFocus(row.id, columnId)}
-              columnWidths={columnWidths}
-            />
-          ))
-        ) : (
-          <div className="p-8 text-center text-gray-400">
-            <p>No data yet. Add a new row to get started.</p>
+      <div className="overflow-auto flex-1">
+        <div className="relative" style={{ minWidth: `${totalTableWidth}px` }}>
+          {/* Table Headers */}
+          <DatabaseHeader 
+            columns={columns}
+            onAddColumn={handleAddColumn}
+            onAddCustomColumn={handleAddCustomColumn}
+            onUpdateColumn={handleUpdateColumn}
+            onDeleteColumn={handleDeleteColumn}
+            columnWidths={columnWidths}
+            onResizeStart={handleResizeStart}
+          />
+          
+          {/* Table Body */}
+          <div className="flex flex-col w-full">
+            {sortedRows.length > 0 ? (
+              sortedRows.map((row) => (
+                <DatabaseRow
+                  key={row.id}
+                  row={row}
+                  columns={columns}
+                  isSelected={tableSelectedRows.includes(row.id)}
+                  onSelect={() => handleToggleRowSelection(row.id)}
+                  onCellUpdate={(columnId, value) => handleUpdateCell(row.id, columnId, value)}
+                  onCellFocus={(columnId) => handleCellFocus(row.id, columnId)}
+                  columnWidths={columnWidths}
+                />
+              ))
+            ) : (
+              <div className="p-8 text-center text-gray-400 w-full">
+                <p>No data yet. Add a new row to get started.</p>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
       
       {/* Table Footer */}

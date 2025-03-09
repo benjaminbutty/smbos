@@ -26,11 +26,12 @@ export function DatabaseRow({
   
   return (
     <div 
-      className={`flex border-b border-gray-200 dark:border-gray-700 group transition-colors
-        ${isSelected ? 'bg-blue-50 dark:bg-blue-900/20' : hovered ? 'bg-gray-50 dark:bg-gray-800/50' : 'bg-white dark:bg-gray-900'}`}
+      className="flex w-full border-b border-gray-200 dark:border-gray-700 group transition-colors"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      style={{ backgroundColor: isSelected ? '#111827' : hovered ? '#1e293b' : '#111827' }}
     >
+      {/* Checkbox cell */}
       <div
         className="w-10 flex-shrink-0 border-r border-gray-200 dark:border-gray-700 flex items-center justify-center"
         onClick={onSelect}
@@ -46,14 +47,24 @@ export function DatabaseRow({
         </div>
       </div>
       
+      {/* Data cells */}
       {columns.map((column) => (
         <div
           key={column.id}
           className="border-r border-gray-200 dark:border-gray-700"
-          style={{ width: columnWidths[column.id] || 150, minWidth: 100 }}
+          style={{ 
+            width: columnWidths[column.id] || 150, 
+            minWidth: 100,
+            flexShrink: 0,
+            flexGrow: 0
+          }}
         >
           <DatabaseCell
-            cell={row.cells[column.id]}
+            cell={row.cells[column.id] || { 
+              id: `temp-${column.id}-${row.id}`, 
+              content: '', 
+              type: column.type 
+            }}
             onUpdate={(value) => onCellUpdate(column.id, value)}
             isSelected={isSelected}
             rowHovered={hovered}

@@ -29,6 +29,7 @@ export function DatabaseHeader({
   const [editingColumnName, setEditingColumnName] = useState('');
   const [activePopoverId, setActivePopoverId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
     // Focus the input when editing begins
@@ -74,14 +75,20 @@ export function DatabaseHeader({
   };
 
   // Toggle column settings popover
-  const toggleColumnSettings = (columnId: string) => {
+  const toggleColumnSettings = (columnId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
     setActivePopoverId(activePopoverId === columnId ? null : columnId);
   };
   
   // Close all popovers when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (activePopoverId && !(event.target as Element).closest('.column-header')) {
+      if (
+        activePopoverId && 
+        popoverRef.current && 
+        !popoverRef.current.contains(event.target as Node) &&
+        !(event.target as Element).closest('.column-header')
+      ) {
         setActivePopoverId(null);
       }
     };
@@ -93,7 +100,7 @@ export function DatabaseHeader({
   }, [activePopoverId]);
   
   return (
-    <div className="flex border-b border-gray-700 bg-gray-900 shadow-sm">
+    <div className="flex w-full border-b border-gray-700 bg-gray-900 shadow-sm sticky top-0 z-10">
       {/* Checkbox column header */}
       <div className="w-10 flex-shrink-0 border-r border-gray-700" />
       
@@ -101,21 +108,30 @@ export function DatabaseHeader({
       {columns.map((column) => (
         <div
           key={column.id}
-          className="flex items-center border-r border-gray-700 select-none relative"
-          style={{ width: columnWidths[column.id] || 150, minWidth: 100 }}
+          className="column-header border-r border-gray-700 select-none relative"
+          style={{ 
+            width: columnWidths[column.id] || 150, 
+            minWidth: 100,
+            flexShrink: 0,
+            flexGrow: 0
+          }}
         >
           {/* Column header (clickable) */}
           <div 
-            className={`column-header flex items-center gap-2 w-full px-2 py-2 cursor-pointer transition-colors hover:bg-gray-800 ${
+            className={`flex items-center gap-2 w-full px-2 py-2 cursor-pointer transition-colors hover:bg-gray-800 ${
               activePopoverId === column.id ? 'bg-gray-800' : ''
             }`}
-            onClick={() => toggleColumnSettings(column.id)}
+            onClick={(e) => toggleColumnSettings(column.id, e)}
           >
             {/* Drag handle */}
-            <GripVertical className="h-4 w-4 text-gray-500 cursor-move" />
+            <div className="flex-shrink-0">
+              <GripVertical className="h-4 w-4 text-gray-500 cursor-move" />
+            </div>
             
             {/* Column type icon */}
-            {getColumnIcon(column)}
+            <div className="flex-shrink-0">
+              {getColumnIcon(column)}
+            </div>
             
             {/* Column name (editable) */}
             {editingColumnId === column.id ? (
@@ -152,17 +168,19 @@ export function DatabaseHeader({
           
           {/* Column settings popover */}
           {activePopoverId === column.id && (
-            <ColumnSettingsPopover
-              column={column}
-              onUpdateColumn={onUpdateColumn}
-              onDeleteColumn={onDeleteColumn}
-              onClose={() => setActivePopoverId(null)}
-            />
+            <div ref={popoverRef} onClick={e => e.stopPropagation()}>
+              <ColumnSettingsPopover
+                column={column}
+                onUpdateColumn={onUpdateColumn}
+                onDeleteColumn={onDeleteColumn}
+                onClose={() => setActivePopoverId(null)}
+              />
+            </div>
           )}
           
           {/* Resize handle */}
           <div
-            className="absolute top-0 right-0 w-1 h-full cursor-col-resize group"
+            className="absolute top-0 right-0 w-1 h-full cursor-col-resize group z-20"
             onMouseDown={(e) => onResizeStart(e, column.id)}
           >
             <div className="invisible group-hover:visible w-1 h-full bg-blue-500"></div>
@@ -171,7 +189,7 @@ export function DatabaseHeader({
       ))}
       
       {/* Add column button */}
-      <div className="ml-auto">
+      <div className="border-l border-gray-700">
         <ColumnPicker onAddColumn={onAddCustomColumn} />
       </div>
     </div>

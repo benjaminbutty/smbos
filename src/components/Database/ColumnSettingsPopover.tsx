@@ -23,7 +23,8 @@ export function ColumnSettingsPopover({
     setColumnType(column.type);
   }, [column]);
   
-  const handleSave = () => {
+  const handleSave = (e: React.MouseEvent) => {
+    e.stopPropagation();
     onUpdateColumn(column.id, {
       name: columnName,
       type: columnType,
@@ -32,14 +33,17 @@ export function ColumnSettingsPopover({
   };
   
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.stopPropagation();
     setColumnName(e.target.value);
   };
   
-  const handleTypeChange = (type: 'text' | 'number') => {
+  const handleTypeChange = (type: 'text' | 'number', e: React.MouseEvent) => {
+    e.stopPropagation();
     setColumnType(type);
   };
   
-  const handleDelete = () => {
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
     // Confirm before deleting
     if (window.confirm(`Are you sure you want to delete the "${column.name}" column? This action cannot be undone.`)) {
       onDeleteColumn(column.id);
@@ -47,8 +51,15 @@ export function ColumnSettingsPopover({
     }
   };
   
+  const handlePopoverClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
+  
   return (
-    <div className="absolute z-20 top-full left-0 mt-1 w-64 bg-gray-800 border border-gray-700 rounded-lg shadow-lg">
+    <div 
+      className="absolute z-20 top-full left-0 mt-1 w-64 bg-gray-800 border border-gray-700 rounded-lg shadow-lg"
+      onClick={handlePopoverClick}
+    >
       <div className="p-3">
         <h3 className="text-sm font-medium text-gray-200 mb-3">Column Settings</h3>
         
@@ -62,6 +73,7 @@ export function ColumnSettingsPopover({
             type="text"
             value={columnName}
             onChange={handleNameChange}
+            onClick={e => e.stopPropagation()}
             className="w-full px-2 py-1.5 bg-gray-700 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </div>
@@ -78,7 +90,7 @@ export function ColumnSettingsPopover({
                   ? 'bg-blue-600 text-white' 
                   : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
               }`}
-              onClick={() => handleTypeChange('text')}
+              onClick={(e) => handleTypeChange('text', e)}
             >
               <Type className="h-3.5 w-3.5" />
               <span>Text</span>
@@ -89,7 +101,7 @@ export function ColumnSettingsPopover({
                   ? 'bg-blue-600 text-white' 
                   : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
               }`}
-              onClick={() => handleTypeChange('number')}
+              onClick={(e) => handleTypeChange('number', e)}
             >
               <DollarSign className="h-3.5 w-3.5" />
               <span>Number</span>
