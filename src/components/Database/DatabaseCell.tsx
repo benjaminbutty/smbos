@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -12,17 +12,17 @@ interface DatabaseCellProps {
   onFocus: () => void;
 }
 
-export function DatabaseCell({ 
-  cell, 
-  onUpdate, 
-  isSelected, 
+export function DatabaseCell({
+  cell,
+  onUpdate,
+  isSelected,
   rowHovered,
-  onFocus 
+  onFocus
 }: DatabaseCellProps) {
   const [isFocused, setIsFocused] = useState(false);
-  const [showMenu, setShowMenu] = useState(false);
   const cellRef = useRef<HTMLDivElement>(null);
 
+  // Set up the text editor for text cells
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -41,7 +41,7 @@ export function DatabaseCell({
     content: cell.content,
     editorProps: {
       attributes: {
-        class: 'prose prose-sm max-w-none focus:outline-none',
+        class: 'prose prose-sm max-w-none focus:outline-none dark:prose-invert',
       },
     },
     onUpdate: ({ editor }) => {
@@ -53,7 +53,6 @@ export function DatabaseCell({
     },
     onBlur: () => {
       setIsFocused(false);
-      setShowMenu(false);
     },
   });
 
@@ -63,32 +62,74 @@ export function DatabaseCell({
       editor.commands.setContent(cell.content || '');
     }
   }, [cell.content, editor]);
-
-  // Format cell content for display (could add special formatting here)
-  const displayValue = cell.content;
   
-  // Determine cell type and render accordingly
-  // For now we just have text, but we could add other types
+  // Format numeric values
+  const formattedValue = useMemo(() => {
+    if (cell.type === 'number' && cell.content) {
+      // Try to parse as number and format
+      const num = parseFloat(cell.content);
+      if (!isNaN(num)) {
+        // For currency-like values, format with 2 decimal places
+        if (cell.content.includes('$') || cell.content.includes('€')) {
+          return new Intl.NumberFormat('en-US', { 
+            style: 'currency', 
+            currency: 'USD',
+            minimumFractionDigits: 2
+          }).format(num);
+        }
+        // For percentages
+        if (cell.content.includes('%')) {
+          return `${num.toLocaleString()}%`;
+        }
+        // For regular numbers
+        return num.toLocaleString();
+      }
+    }
+    return cell.content;
+  }, [cell.type, cell.content]);
+
+  // Render different cell types
   const renderCellContent = () => {
-    // Text content
-    return (
-      <EditorContent 
-        editor={editor} 
-        className={`w-full h-full ${isFocused ? 'z-10' : ''}`}
-        onClick={() => {
-          if (!isFocused) {
-            editor?.commands.focus();
-          }
-        }}
-      />
-    );
+    if (isFocused) {
+      // When focused, always show the editor
+      return (
+        <EditorContent 
+          editor={editor} 
+          className="w-full h-full"
+        />
+      );
+    }
+    
+    switch (cell.type) {
+      case 'number':
+        return (
+          <div 
+            className="w-full h-full cursor-text text-right"
+            onClick={() => editor?.commands.focus()}
+          >
+            {formattedValue}
+          </div>
+        );
+      case 'text':
+      default:
+        return (
+          <div 
+            className="w-full h-full cursor-text"
+            onClick={() => editor?.commands.focus()}
+          >
+            {cell.content || (
+              <span className="text-gray-400 dark:text-gray-500">Empty</span>
+            )}
+          </div>
+        );
+    }
   };
 
   return (
     <div
       ref={cellRef}
       className={`
-        min-h-[2.25rem] px-3 py-1.5 transition-colors relative
+        min-h-[2.25rem] px-3 py-1.5 transition-colors relative database-cell-transition
         ${isSelected 
           ? 'bg-blue-50 dark:bg-blue-900/10' 
           : isFocused 
@@ -100,13 +141,6 @@ export function DatabaseCell({
       `}
     >
       {renderCellContent()}
-      
-      {/* Cell type menu - shown when focused */}
-      {showMenu && (
-        <div className="absolute top-full right-0 mt-1 bg-white dark:bg-gray-800 shadow-md rounded-md border border-gray-200 dark:border-gray-700 z-20">
-          {/* Menu options would go here */}
-        </div>
-      )}
     </div>
   );
 }

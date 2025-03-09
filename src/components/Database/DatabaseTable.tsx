@@ -1,8 +1,9 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { ChevronDown, ChevronUp, Plus, Filter, Settings, MoreHorizontal } from 'lucide-react';
 import { DatabaseRow } from './DatabaseRow';
-import { useActiveTable } from './databaseSelectors';
+import { useDatabase } from './useDatabase';
 import { Column } from './types';
+import { DatabaseHeader } from './DatabaseHeader';
 
 interface ColumnResizeData {
   columnId: string;
@@ -12,22 +13,40 @@ interface ColumnResizeData {
 
 export function DatabaseTable() {
   const {
-    columns,
-    rows,
+    tables,
+    activeTableId,
     selectedRows,
     addColumn,
-    addCustomColumn,
+    updateColumn,
+    deleteColumn,
     addRow,
     updateCell,
     toggleRowSelection,
-    table
-  } = useActiveTable();
+  } = useDatabase();
+
+  // Get active table data
+  const table = activeTableId ? tables[activeTableId] : null;
+  const columns = table?.columns || [];
+  const rows = table?.rows || [];
+  const tableSelectedRows = activeTableId && selectedRows[activeTableId] ? selectedRows[activeTableId] : [];
   
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [resizing, setResizing] = useState<ColumnResizeData | null>(null);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
+  const [selectedCellPosition, setSelectedCellPosition] = useState<{rowId: string; columnId: string} | null>(null);
   const tableRef = useRef<HTMLDivElement>(null);
+  
+  // Initialize column widths
+  useEffect(() => {
+    if (columns.length > 0) {
+      const initialWidths: Record<string, number> = {};
+      columns.forEach(column => {
+        initialWidths[column.id] = columnWidths[column.id] || 150;
+      });
+      setColumnWidths(initialWidths);
+    }
+  }, [columns]);
   
   // Handle column sorting
   const handleSort = (columnId: string) => {
@@ -98,9 +117,58 @@ export function DatabaseTable() {
     });
   }, [rows, sortColumn, sortDirection]);
   
-  // Handle adding a new column
+  // Handle adding a column
   const handleAddColumn = () => {
-    addCustomColumn({ name: 'New Column', type: 'text' });
+    if (activeTableId) {
+      addColumn(activeTableId);
+    }
+  };
+
+  // Handle adding a custom column
+  const handleAddCustomColumn = (column: Omit<Column, 'id'>) => {
+    if (activeTableId) {
+      addColumn(activeTableId, column);
+    }
+  };
+  
+  // Handle updating a column
+  const handleUpdateColumn = (columnId: string, updates: Partial<Omit<Column, 'id'>>) => {
+    if (activeTableId) {
+      updateColumn(activeTableId, columnId, updates);
+    }
+  };
+  
+  // Handle deleting a column
+  const handleDeleteColumn = (columnId: string) => {
+    if (activeTableId) {
+      deleteColumn(activeTableId, columnId);
+    }
+  };
+  
+  // Handle updating a cell
+  const handleUpdateCell = (rowId: string, columnId: string, value: string) => {
+    if (activeTableId) {
+      updateCell(activeTableId, rowId, columnId, value);
+    }
+  };
+  
+  // Handle cell focus
+  const handleCellFocus = (rowId: string, columnId: string) => {
+    setSelectedCellPosition({ rowId, columnId });
+  };
+  
+  // Handle adding a row
+  const handleAddRow = () => {
+    if (activeTableId) {
+      addRow(activeTableId);
+    }
+  };
+  
+  // Handle row selection
+  const handleToggleRowSelection = (rowId: string) => {
+    if (activeTableId) {
+      toggleRowSelection(activeTableId, rowId);
+    }
   };
   
   if (!table) {
@@ -108,6 +176,12 @@ export function DatabaseTable() {
       <div className="w-full h-full flex items-center justify-center bg-gray-50 dark:bg-gray-800 rounded-lg">
         <div className="text-center p-8">
           <p className="text-gray-500 dark:text-gray-400">Select a table to view data</p>
+          <button 
+            className="mt-4 px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-blue-500"
+            onClick={() => addRow(activeTableId || '')}
+          >
+            Create New Table
+          </button>
         </div>
       </div>
     );
@@ -125,7 +199,7 @@ export function DatabaseTable() {
             {table.name}
           </h2>
           <span className="text-xs text-gray-500 dark:text-gray-400">
-            {rows.length} items
+            {rows.length} {rows.length === 1 ? 'item' : 'items'}
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -141,56 +215,16 @@ export function DatabaseTable() {
         </div>
       </div>
       
-      {/* Table Header */}
-      <div className="sticky top-0 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 z-10">
-        <div className="flex">
-          {/* Checkbox column */}
-          <div className="w-10 flex-shrink-0 p-2 border-r border-gray-200 dark:border-gray-700">
-            <div className="w-4 h-4 rounded border border-gray-300 dark:border-gray-600"></div>
-          </div>
-          
-          {/* Column headers */}
-          {columns.map((column) => (
-            <div
-              key={column.id}
-              className="border-r border-gray-200 dark:border-gray-700 relative"
-              style={{ width: columnWidths[column.id] || 150, minWidth: 100 }}
-            >
-              <div 
-                className="flex items-center justify-between px-3 py-2 select-none cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
-                onClick={() => handleSort(column.id)}
-              >
-                <span className="text-xs font-medium text-gray-600 dark:text-gray-300">
-                  {column.name}
-                </span>
-                <div className="flex items-center text-gray-400">
-                  {sortColumn === column.id && (
-                    sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
-                  )}
-                </div>
-              </div>
-              
-              {/* Resize handle */}
-              <div
-                className="absolute top-0 right-0 w-1 h-full cursor-col-resize group"
-                onMouseDown={(e) => handleResizeStart(e, column.id)}
-              >
-                <div className="invisible group-hover:visible w-1 h-full bg-blue-500"></div>
-              </div>
-            </div>
-          ))}
-          
-          {/* Add column button */}
-          <div className="px-3 py-2 flex items-center">
-            <button
-              onClick={handleAddColumn}
-              className="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-            >
-              <Plus size={16} />
-            </button>
-          </div>
-        </div>
-      </div>
+      {/* Table Headers */}
+      <DatabaseHeader 
+        columns={columns}
+        onAddColumn={handleAddColumn}
+        onAddCustomColumn={handleAddCustomColumn}
+        onUpdateColumn={handleUpdateColumn}
+        onDeleteColumn={handleDeleteColumn}
+        columnWidths={columnWidths}
+        onResizeStart={handleResizeStart}
+      />
       
       {/* Table Body */}
       <div className="flex-1 overflow-auto">
@@ -200,10 +234,10 @@ export function DatabaseTable() {
               key={row.id}
               row={row}
               columns={columns}
-              isSelected={selectedRows?.includes(row.id) || false}
-              onSelect={() => toggleRowSelection(row.id)}
-              onCellUpdate={(columnId, value) => updateCell(row.id, columnId, value)}
-              onCellFocus={() => {}}
+              isSelected={tableSelectedRows.includes(row.id)}
+              onSelect={() => handleToggleRowSelection(row.id)}
+              onCellUpdate={(columnId, value) => handleUpdateCell(row.id, columnId, value)}
+              onCellFocus={(columnId) => handleCellFocus(row.id, columnId)}
               columnWidths={columnWidths}
             />
           ))
@@ -217,15 +251,15 @@ export function DatabaseTable() {
       {/* Table Footer */}
       <div className="sticky bottom-0 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-4 py-3 flex justify-between items-center">
         <button
-          onClick={addRow}
-          className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-500"
+          onClick={handleAddRow}
+          className="flex items-center gap-1 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300"
         >
           <Plus size={14} />
           <span>New Row</span>
         </button>
         
-        <div className="text-xs text-gray-500">
-          {selectedRows?.length || 0} of {rows.length} selected
+        <div className="text-xs text-gray-500 dark:text-gray-400">
+          {tableSelectedRows.length} of {rows.length} selected
         </div>
       </div>
     </div>

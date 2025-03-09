@@ -20,6 +20,8 @@ export interface DatabaseState {
   
   // Column operations
   addColumn: (tableId: string, column?: Omit<Column, 'id'>) => Promise<void>;
+  updateColumn: (tableId: string, columnId: string, updates: Partial<Omit<Column, 'id'>>) => Promise<void>;
+  deleteColumn: (tableId: string, columnId: string) => Promise<void>;
   
   // Row operations  
   addRow: (tableId: string) => Promise<void>;
@@ -316,11 +318,13 @@ export const useDatabase = create<DatabaseState>((set, get) => ({
         content: '',
       }));
 
-      const { error: cellsError } = await supabase
-        .from('database_cells')
-        .insert(cellInserts);
+      if (cellInserts.length > 0) {
+        const { error: cellsError } = await supabase
+          .from('database_cells')
+          .insert(cellInserts);
 
-      if (cellsError) throw cellsError;
+        if (cellsError) throw cellsError;
+      }
 
       // Update local state
       set(state => ({
@@ -353,6 +357,127 @@ export const useDatabase = create<DatabaseState>((set, get) => ({
       set({ 
         isLoading: false, 
         error: error instanceof Error ? error.message : 'Failed to add column' 
+      });
+    }
+  },
+
+  updateColumn: async (tableId: string, columnId: string, updates: Partial<Omit<Column, 'id'>>) => {
+    set({ isLoading: true, error: null });
+    try {
+      const table = get().tables[tableId];
+      if (!table) throw new Error('Table not found');
+      
+      const column = table.columns.find(col => col.id === columnId);
+      if (!column) throw new Error('Column not found');
+      
+      const { error } = await supabase
+        .from('database_columns')
+        .update({
+          name: updates.name !== undefined ? updates.name : column.name,
+          type: updates.type !== undefined ? updates.type : column.type,
+        })
+        .eq('id', columnId);
+
+      if (error) throw error;
+      
+      // If type has changed, update all cells of this column
+      if (updates.type && updates.type !== column.type) {
+        // For simplicity, we're just updating the type in the database
+        // In a real implementation, you might need to convert the data
+        const rowIds = table.rows.map(row => row.id);
+        
+        if (rowIds.length > 0) {
+          const { data: cellsData } = await supabase
+            .from('database_cells')
+            .select('id, row_id')
+            .eq('column_id', columnId)
+            .in('row_id', rowIds);
+            
+          if (cellsData && cellsData.length > 0) {
+            // If we need to transform cell values based on new type,
+            // we would do that here
+          }
+        }
+      }
+
+      // Update local state
+      set(state => ({
+        tables: {
+          ...state.tables,
+          [tableId]: {
+            ...table,
+            columns: table.columns.map(col => 
+              col.id === columnId 
+                ? { ...col, ...updates }
+                : col
+            ),
+            rows: table.rows.map(row => ({
+              ...row,
+              cells: {
+                ...row.cells,
+                [columnId]: row.cells[columnId] 
+                  ? {
+                      ...row.cells[columnId],
+                      type: updates.type || row.cells[columnId].type,
+                    }
+                  : row.cells[columnId],
+              },
+            })),
+          },
+        },
+        isLoading: false,
+      }));
+    } catch (error) {
+      console.error('Error updating column:', error);
+      set({ 
+        isLoading: false, 
+        error: error instanceof Error ? error.message : 'Failed to update column' 
+      });
+    }
+  },
+
+  deleteColumn: async (tableId: string, columnId: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const table = get().tables[tableId];
+      if (!table) throw new Error('Table not found');
+      
+      // Delete from database - cascade should handle related cells
+      const { error } = await supabase
+        .from('database_columns')
+        .delete()
+        .eq('id', columnId);
+
+      if (error) throw error;
+
+      // Update local state
+      set(state => {
+        const updatedColumns = table.columns.filter(col => col.id !== columnId);
+        const updatedRows = table.rows.map(row => {
+          const { [columnId]: removedCell, ...remainingCells } = row.cells;
+          return {
+            ...row,
+            cells: remainingCells,
+          };
+        });
+        
+        return {
+          tables: {
+            ...state.tables,
+            [tableId]: {
+              ...table,
+              columns: updatedColumns,
+              rows: updatedRows,
+            },
+          },
+          isLoading: false,
+        };
+      });
+    } catch (error) {
+      console.error('Error deleting column:', error);
+      set({ 
+        isLoading: false, 
+        error: error instanceof Error ? error.message : 'Failed to delete column' 
       });
     }
   },

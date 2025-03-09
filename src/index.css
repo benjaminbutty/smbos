@@ -25,23 +25,51 @@
   }
 }
 
-/* Database Cell Editor Styles */
+/* Database Cell Editor Styles with improved dark mode support */
 .ProseMirror {
   @apply outline-none text-gray-900 dark:text-gray-100;
   min-height: 1.5rem;
   width: 100%;
 }
 
+/* Ensure paragraphs have proper text color in light/dark modes */
 .ProseMirror p {
-  @apply m-0 text-gray-900 dark:text-gray-100;
+  @apply m-0 text-gray-900 dark:text-gray-100 !important;
 }
 
+/* Style placeholder text differently */
 .ProseMirror p.is-editor-empty:first-child::before {
   @apply text-gray-400 dark:text-gray-500;
   content: attr(data-placeholder);
   float: left;
   pointer-events: none;
   height: 0;
+}
+
+/* Add styles for specific node types to ensure consistency */
+.ProseMirror strong {
+  @apply text-gray-900 dark:text-gray-100;
+}
+
+.ProseMirror em {
+  @apply text-gray-900 dark:text-gray-100;
+}
+
+.ProseMirror a {
+  @apply text-blue-600 dark:text-blue-400;
+}
+
+/* Style for when the editor has focus */
+.ProseMirror:focus {
+  @apply text-gray-900 dark:text-gray-100;
+}
+
+/* Ensure dark mode text is visible on dark backgrounds */
+.dark .ProseMirror, 
+.dark .ProseMirror p,
+.dark .ProseMirror div,
+.dark .ProseMirror span {
+  @apply text-gray-100;
 }
 
 /* Table cell transitions */
