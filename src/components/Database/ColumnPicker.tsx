@@ -51,6 +51,7 @@ export function ColumnPicker({ onAddColumn }: ColumnPickerProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [showCustomDialog, setShowCustomDialog] = useState(false);
   
   // Filter attributes based on search query and selected category
   const filteredAttributes = PREDEFINED_ATTRIBUTES.filter(attr => {
@@ -76,11 +77,14 @@ export function ColumnPicker({ onAddColumn }: ColumnPickerProps) {
       }
     }
     
-    document.addEventListener('mousedown', handleClickOutside);
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, []);
+  }, [isOpen]);
 
   function handleAddAttribute(attribute: typeof PREDEFINED_ATTRIBUTES[0]) {
     onAddColumn({
@@ -93,8 +97,6 @@ export function ColumnPicker({ onAddColumn }: ColumnPickerProps) {
     setIsOpen(false);
     setSearchQuery('');
   }
-
-  const [showCustomDialog, setShowCustomDialog] = useState(false);
   
   function handleCreateCustomAttribute() {
     setShowCustomDialog(true);
@@ -113,7 +115,8 @@ export function ColumnPicker({ onAddColumn }: ColumnPickerProps) {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 text-gray-400 hover:text-gray-200 text-sm px-3 py-2 rounded hover:bg-gray-800"
+        className="flex items-center gap-2 text-gray-400 hover:text-gray-200 text-sm px-3 py-2 rounded hover:bg-gray-800 h-full"
+        type="button"
       >
         <Plus className="h-4 w-4" />
         <span>Add column</span>
@@ -143,6 +146,7 @@ export function ColumnPicker({ onAddColumn }: ColumnPickerProps) {
                     : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                 }`}
                 onClick={() => setSelectedCategory(null)}
+                type="button"
               >
                 All
               </button>
@@ -155,6 +159,7 @@ export function ColumnPicker({ onAddColumn }: ColumnPickerProps) {
                       : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                   }`}
                   onClick={() => setSelectedCategory(category)}
+                  type="button"
                 >
                   {label}
                 </button>
@@ -174,6 +179,7 @@ export function ColumnPicker({ onAddColumn }: ColumnPickerProps) {
                       key={attribute.id}
                       className="w-full text-left flex items-center gap-3 px-3 py-2 hover:bg-gray-700 text-gray-200 rounded"
                       onClick={() => handleAddAttribute(attribute)}
+                      type="button"
                     >
                       <div className="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-gray-700 rounded">
                         <attribute.icon className="h-4 w-4 text-gray-400" />
@@ -198,6 +204,7 @@ export function ColumnPicker({ onAddColumn }: ColumnPickerProps) {
               <button
                 className="w-full text-left flex items-center justify-between px-3 py-2 hover:bg-gray-700 text-gray-200 rounded mt-1"
                 onClick={handleCreateCustomAttribute}
+                type="button"
               >
                 <span>Create custom attribute</span>
                 <ChevronRight className="h-4 w-4 text-gray-500" />
@@ -207,7 +214,7 @@ export function ColumnPicker({ onAddColumn }: ColumnPickerProps) {
         </div>
       )}
       
-      {/* Custom Column Dialog */}
+      {/* Custom Column Dialog - Render at root level for proper z-index */}
       {showCustomDialog && (
         <CustomColumnDialog 
           isOpen={showCustomDialog}

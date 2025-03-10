@@ -38,6 +38,11 @@ export interface DatabaseState {
   
   // Row operations
   addRow: (tableId: string) => void;
+  deleteRow: (tableId: string, rowId: string) => Promise<void>;
+  deleteMultipleRows: (tableId: string, rowIds: string[]) => Promise<void>;
   updateCell: (tableId: string, rowId: string, columnId: string, value: string) => void;
   toggleRowSelection: (tableId: string, rowId: string) => void;
+
+    // Data loading
+  fetchUserTables: () => Promise<void>;
 }

@@ -35,7 +35,7 @@ export function DatabaseCell({
         orderedList: false
       }),
       Placeholder.configure({
-        placeholder: 'Empty cell',
+        placeholder: '',
       }),
     ],
     content: cell.content,
@@ -132,7 +132,7 @@ export function DatabaseCell({
               {cell.type === 'number' ? formattedValue : cell.content}
             </span>
           ) : (
-            <span className="text-gray-500">Empty</span>
+            <span className="text-gray-500"></span>
           )}
         </div>
       )}

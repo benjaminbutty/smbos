@@ -25,6 +25,8 @@ export interface DatabaseState {
   
   // Row operations  
   addRow: (tableId: string) => Promise<void>;
+  deleteRow: (tableId: string, rowId: string) => Promise<void>;
+  deleteMultipleRows: (tableId: string, rowIds: string[]) => Promise<void>;
   updateCell: (tableId: string, rowId: string, columnId: string, value: string) => Promise<void>;
   toggleRowSelection: (tableId: string, rowId: string) => void;
 }
@@ -536,6 +538,99 @@ export const useDatabase = create<DatabaseState>((set, get) => ({
       });
     }
   },
+
+  deleteRow: async (tableId: string, rowId: string) => {
+  set({ isLoading: true, error: null });
+  try {
+    const table = get().tables[tableId];
+    if (!table) throw new Error('Table not found');
+    
+    // Delete from database - cascade should handle related cells
+    const { error } = await supabase
+      .from('database_rows')
+      .delete()
+      .eq('id', rowId);
+
+    if (error) throw error;
+
+    // Update local state
+    set(state => {
+      // Remove the deleted row
+      const updatedRows = table.rows.filter(row => row.id !== rowId);
+      
+      // Remove the row from selected rows
+      const updatedSelectedRows = { 
+        ...state.selectedRows,
+        [tableId]: (state.selectedRows[tableId] || []).filter(id => id !== rowId)
+      };
+      
+      return {
+        tables: {
+          ...state.tables,
+          [tableId]: {
+            ...table,
+            rows: updatedRows,
+          }
+        },
+        selectedRows: updatedSelectedRows,
+        isLoading: false,
+      };
+    });
+  } catch (error) {
+    console.error('Error deleting row:', error);
+    set({ 
+      isLoading: false, 
+      error: error instanceof Error ? error.message : 'Failed to delete row' 
+    });
+  }
+},
+
+  deleteMultipleRows: async (tableId: string, rowIds: string[]) => {
+  set({ isLoading: true, error: null });
+  try {
+    const table = get().tables[tableId];
+    if (!table) throw new Error('Table not found');
+    
+    if (rowIds.length === 0) return;
+    
+    // Delete all rows in a single operation
+    const { error } = await supabase
+      .from('database_rows')
+      .delete()
+      .eq('table_id', tableId)
+      .in('id', rowIds);
+      
+    if (error) throw error;
+    
+    // Update local state
+    set(state => {
+      // Filter out all deleted rows
+      const updatedRows = table.rows.filter(row => !rowIds.includes(row.id));
+      
+      // Clear selection for this table
+      return {
+        tables: {
+          ...state.tables,
+          [tableId]: {
+            ...table,
+            rows: updatedRows,
+          }
+        },
+        selectedRows: {
+          ...state.selectedRows,
+          [tableId]: []
+        },
+        isLoading: false,
+      };
+    });
+  } catch (error) {
+    console.error('Error deleting multiple rows:', error);
+    set({ 
+      isLoading: false, 
+      error: error instanceof Error ? error.message : 'Failed to delete rows' 
+    });
+  }
+},
 
   updateCell: async (tableId: string, rowId: string, columnId: string, value: string) => {
     try {

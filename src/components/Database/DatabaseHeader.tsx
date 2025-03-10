@@ -100,7 +100,7 @@ export function DatabaseHeader({
   }, [activePopoverId]);
   
   return (
-    <div className="flex w-full border-b border-gray-700 bg-gray-900 shadow-sm sticky top-0 z-10">
+    <div className="flex w-full border-b border-gray-700 bg-gray-900 shadow-sm z-20">
       {/* Checkbox column header */}
       <div className="w-10 flex-shrink-0 border-r border-gray-700" />
       
@@ -108,7 +108,7 @@ export function DatabaseHeader({
       {columns.map((column) => (
         <div
           key={column.id}
-          className="column-header border-r border-gray-700 select-none relative"
+          className="column-header border-r border-gray-700 select-none relative group"
           style={{ 
             width: columnWidths[column.id] || 150, 
             minWidth: 100,

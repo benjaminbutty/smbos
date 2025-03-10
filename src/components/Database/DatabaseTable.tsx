@@ -3,6 +3,7 @@ import { ChevronDown, ChevronUp, Plus, Filter, Settings, MoreHorizontal } from '
 import { DatabaseRow } from './DatabaseRow';
 import { useDatabase } from './useDatabase';
 import { Column } from './types';
+import { Trash2 } from 'lucide-react';
 import { DatabaseHeader } from './DatabaseHeader';
 
 interface ColumnResizeData {
@@ -20,8 +21,11 @@ export function DatabaseTable() {
     updateColumn,
     deleteColumn,
     addRow,
+    deleteRow,
+    deleteMultipleRows,
     updateCell,
     toggleRowSelection,
+    isLoading,
   } = useDatabase();
 
   // Get active table data
@@ -180,13 +184,33 @@ export function DatabaseTable() {
     }
   };
   
+  // Handle deleting selected rows
+  const handleDeleteSelectedRows = () => {
+    if (activeTableId && tableSelectedRows.length > 0) {
+      // Confirm deletion
+      const isConfirmed = window.confirm(
+        `Are you sure you want to delete ${tableSelectedRows.length > 1 ? 'these records' : 'this record'}? This action cannot be undone.`
+      );
+      
+      if (isConfirmed) {
+        // Use the new function to delete multiple rows at once
+        if (tableSelectedRows.length > 1) {
+          deleteMultipleRows(activeTableId, tableSelectedRows);
+        } else {
+          // For a single row, use the existing function
+          deleteRow(activeTableId, tableSelectedRows[0]);
+        }
+      }
+    }
+  };
+  
   if (!table) {
     return (
-      <div className="w-full h-full flex items-center justify-center bg-gray-50 dark:bg-gray-800 rounded-lg">
+      <div className="w-full h-full flex items-center justify-center bg-gray-50 dark:bg-gray-800">
         <div className="text-center p-8">
           <p className="text-gray-500 dark:text-gray-400">Select a table to view data</p>
           <button 
-            className="mt-4 px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-blue-500"
+            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-500"
             onClick={() => addRow(activeTableId || '')}
           >
             Create New Table
@@ -198,11 +222,11 @@ export function DatabaseTable() {
   
   return (
     <div 
-      className="w-full h-full flex flex-col bg-white dark:bg-gray-900 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700"
+      className="h-full flex flex-col bg-white dark:bg-gray-900 overflow-hidden"
       ref={tableRef}
     >
-      {/* Table Header Controls */}
-      <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+      {/* Table Header Controls - Sticky */}
+      <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-900 sticky top-0 z-10">
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-medium text-gray-900 dark:text-gray-100">
             {table.name}
@@ -224,18 +248,21 @@ export function DatabaseTable() {
         </div>
       </div>
       
-      <div className="overflow-auto flex-1">
+      {/* Scrollable Table Body Area */}
+      <div className="flex-1 overflow-auto">
         <div className="relative" style={{ minWidth: `${totalTableWidth}px` }}>
-          {/* Table Headers */}
-          <DatabaseHeader 
-            columns={columns}
-            onAddColumn={handleAddColumn}
-            onAddCustomColumn={handleAddCustomColumn}
-            onUpdateColumn={handleUpdateColumn}
-            onDeleteColumn={handleDeleteColumn}
-            columnWidths={columnWidths}
-            onResizeStart={handleResizeStart}
-          />
+          {/* Table Headers - Sticky in the scrollable area */}
+          <div className="sticky top-0 z-10">
+            <DatabaseHeader 
+              columns={columns}
+              onAddColumn={handleAddColumn}
+              onAddCustomColumn={handleAddCustomColumn}
+              onUpdateColumn={handleUpdateColumn}
+              onDeleteColumn={handleDeleteColumn}
+              columnWidths={columnWidths}
+              onResizeStart={handleResizeStart}
+            />
+          </div>
           
           {/* Table Body */}
           <div className="flex flex-col w-full">
@@ -248,7 +275,7 @@ export function DatabaseTable() {
                   isSelected={tableSelectedRows.includes(row.id)}
                   onSelect={() => handleToggleRowSelection(row.id)}
                   onCellUpdate={(columnId, value) => handleUpdateCell(row.id, columnId, value)}
-                  onCellFocus={(columnId) => handleCellFocus(row.id, columnId)}
+                  onCellFocus={(rowId) => handleCellFocus(row.id, rowId)}
                   columnWidths={columnWidths}
                 />
               ))
@@ -261,18 +288,30 @@ export function DatabaseTable() {
         </div>
       </div>
       
-      {/* Table Footer */}
-      <div className="sticky bottom-0 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-4 py-3 flex justify-between items-center">
-        <button
-          onClick={handleAddRow}
-          className="flex items-center gap-1 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300"
-        >
-          <Plus size={14} />
-          <span>New Row</span>
-        </button>
+      {/* Table Footer - Sticky */}
+      <div className="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-4 py-3 flex justify-between items-center sticky bottom-0 z-10">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleAddRow}
+            className="flex items-center gap-1 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300"
+          >
+            <Plus size={14} />
+            <span>New Row</span>
+          </button>
+          
+          {tableSelectedRows.length > 0 && (
+            <button
+              onClick={handleDeleteSelectedRows}
+              className="flex items-center gap-1 text-xs font-medium text-red-600 dark:text-red-400 hover:text-red-500 dark:hover:text-red-300"
+            >
+              <Trash2 size={14} />
+              <span>Delete {tableSelectedRows.length > 1 ? `(${tableSelectedRows.length})` : ''}</span>
+            </button>
+          )}
+        </div>
         
         <div className="text-xs text-gray-500 dark:text-gray-400">
-          {tableSelectedRows.length} of {rows.length} selected
+          {tableSelectedRows.length > 0 ? `${tableSelectedRows.length} of ${rows.length} selected` : `${rows.length} ${rows.length === 1 ? 'row' : 'rows'}`}
         </div>
       </div>
     </div>

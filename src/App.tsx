@@ -38,20 +38,21 @@ function DashboardLayout() {
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
         <div
-          className={`fixed inset-y-0 left-0 top-[88px] z-40 w-60 transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+          className={`fixed inset-y-0 left-0 top-[88px] z-30 w-60 transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
             isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
         >
           <Sidebar />
         </div>
         
-        {/* Main content */}
+        {/* Main content - full height and width with its own scrolling */}
         <main
-          className={`flex-1 transition-all duration-300 ease-in-out overflow-auto pt-4 px-4 ${
-            isSidebarOpen ? 'lg:pl-64' : ''
+          className={`flex-1 transition-all duration-300 ease-in-out ${
+            isSidebarOpen ? 'lg:pl-60' : ''
           }`}
         >
-          <div className="max-w-7xl mx-auto pb-6">
+          {/* Full-height container for DatabaseTable */}
+          <div className="h-full">
             <DatabaseTable />
           </div>
         </main>
@@ -60,7 +61,7 @@ function DashboardLayout() {
       {/* Mobile sidebar overlay */}
       {isSidebarOpen && (
         <div
-          className="fixed inset-0 bg-gray-900 bg-opacity-50 transition-opacity lg:hidden z-30"
+          className="fixed inset-0 bg-gray-900 bg-opacity-50 transition-opacity lg:hidden z-20"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
