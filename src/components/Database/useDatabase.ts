@@ -19,7 +19,7 @@ export interface DatabaseState {
   setActiveTable: (tableId: string) => void;
   
   // Column operations
-  addColumn: (tableId: string, column?: Omit<Column, 'id'>) => Promise<void>;
+  addColumn: (tableId: string, columnData?: Partial<Omit<Column, 'id'>>) => Promise<void>;
   updateColumn: (tableId: string, columnId: string, updates: Partial<Omit<Column, 'id'>>) => Promise<void>;
   deleteColumn: (tableId: string, columnId: string) => Promise<void>;
   
@@ -41,81 +41,121 @@ export const useDatabase = create<DatabaseState>((set, get) => ({
   fetchUserTables: async () => {
     set({ isLoading: true, error: null });
     try {
+      // First check if user is authenticated
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) throw new Error('Authentication error: ' + authError.message);
+      if (!user) throw new Error('No authenticated user found');
+
+      // Fetch tables
       const { data: tablesData, error: tablesError } = await supabase
         .from('database_tables')
         .select('*')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
         
       if (tablesError) throw tablesError;
+      if (!tablesData) throw new Error('No tables data received');
       
       const tables: Record<string, Table> = {};
       let activeTableId = get().activeTableId;
       
-      for (const tableData of tablesData) {
-        if (!activeTableId) activeTableId = tableData.id;
-        
-        const { data: columnsData, error: columnsError } = await supabase
-          .from('database_columns')
-          .select('*')
-          .eq('table_id', tableData.id)
-          .order('order', { ascending: true });
+      // If we have tables, process them
+      if (tablesData.length > 0) {
+        for (const tableData of tablesData) {
+          if (!activeTableId) activeTableId = tableData.id;
           
-        if (columnsError) throw columnsError;
-        
-        const { data: rowsData, error: rowsError } = await supabase
-          .from('database_rows')
-          .select('*')
-          .eq('table_id', tableData.id)
-          .order('created_at', { ascending: true });
+          // Fetch columns for this table
+          const { data: columnsData, error: columnsError } = await supabase
+            .from('database_columns')
+            .select('*')
+            .eq('table_id', tableData.id)
+            .order('order', { ascending: true });
+            
+          if (columnsError) throw new Error(`Error fetching columns: ${columnsError.message}`);
+          if (!columnsData) throw new Error('No columns data received');
           
-        if (rowsError) throw rowsError;
-        
-        const rowIds = rowsData.map(row => row.id);
-        
-        const { data: cellsData, error: cellsError } = await supabase
-          .from('database_cells')
-          .select('*')
-          .in('row_id', rowIds);
+          // Fetch rows for this table
+          const { data: rowsData, error: rowsError } = await supabase
+            .from('database_rows')
+            .select('*')
+            .eq('table_id', tableData.id)
+            .order('created_at', { ascending: true });
+            
+          if (rowsError) throw new Error(`Error fetching rows: ${rowsError.message}`);
+          if (!rowsData) throw new Error('No rows data received');
           
-        if (cellsError) throw cellsError;
-        
-        const columns = columnsData.map(col => ({
-          id: col.id,
-          name: col.name,
-          type: col.type as 'text' | 'number',
-        }));
-        
-        const rows = rowsData.map(row => {
-          const rowCells = cellsData.filter(cell => cell.row_id === row.id);
-          const cells: Record<string, Cell> = {};
+          // If we have rows, fetch their cells
+          let cellsData = [];
+          if (rowsData.length > 0) {
+            const rowIds = rowsData.map(row => row.id);
+            const { data: cells, error: cellsError } = await supabase
+              .from('database_cells')
+              .select('*')
+              .in('row_id', rowIds);
+              
+            if (cellsError) throw new Error(`Error fetching cells: ${cellsError.message}`);
+            if (!cells) throw new Error('No cells data received');
+            
+            cellsData = cells;
+          }
           
-          rowCells.forEach(cell => {
-            const column = columnsData.find(col => col.id === cell.column_id);
-            cells[cell.column_id] = {
-              id: cell.id,
-              content: cell.content || '',
-              type: column?.type as 'text' | 'number',
+          // Process columns with proper error handling for metadata
+          const columns = columnsData.map(col => {
+            let metadata = {};
+            if (col.metadata) {
+              try {
+                metadata = typeof col.metadata === 'string' 
+                  ? JSON.parse(col.metadata) 
+                  : col.metadata;
+              } catch (err) {
+                console.warn(`Failed to parse metadata for column ${col.id}:`, err);
+              }
+            }
+            
+            return {
+              id: col.id,
+              name: col.name,
+              type: col.type as 'text' | 'number',
+              metadata
             };
           });
           
-          return {
-            id: row.id,
-            cells,
+          // Process rows and their cells
+          const rows = rowsData.map(row => {
+            const rowCells = cellsData.filter(cell => cell.row_id === row.id);
+            const cells: Record<string, Cell> = {};
+            
+            rowCells.forEach(cell => {
+              const column = columnsData.find(col => col.id === cell.column_id);
+              if (column) {
+                cells[cell.column_id] = {
+                  id: cell.id,
+                  content: cell.content || '',
+                  type: column.type as 'text' | 'number',
+                };
+              }
+            });
+            
+            return {
+              id: row.id,
+              cells,
+            };
+          });
+          
+          tables[tableData.id] = {
+            id: tableData.id,
+            name: tableData.name,
+            columns,
+            rows,
           };
-        });
-        
-        tables[tableData.id] = {
-          id: tableData.id,
-          name: tableData.name,
-          columns,
-          rows,
-        };
+        }
       }
       
       set({ 
         tables, 
         activeTableId, 
         isLoading: false,
+        error: null,
         selectedRows: Object.keys(tables).reduce((acc, tableId) => {
           acc[tableId] = [];
           return acc;
@@ -126,7 +166,10 @@ export const useDatabase = create<DatabaseState>((set, get) => ({
       console.error('Error fetching tables:', error);
       set({ 
         isLoading: false, 
-        error: error instanceof Error ? error.message : 'Failed to load tables' 
+        error: error instanceof Error ? error.message : 'Failed to load tables',
+        tables: {},
+        activeTableId: null,
+        selectedRows: {}
       });
     }
   },
@@ -189,6 +232,7 @@ export const useDatabase = create<DatabaseState>((set, get) => ({
           id: col.id,
           name: col.name,
           type: col.type as 'text' | 'number',
+          metadata: {}
         })),
         rows: [{
           id: rowData.id,
@@ -292,31 +336,42 @@ export const useDatabase = create<DatabaseState>((set, get) => ({
     }
   },
 
-  addColumn: async (tableId: string, column?: Omit<Column, 'id'>) => {
+  addColumn: async (tableId: string, columnData?: Partial<Omit<Column, 'id'>>) => {
     set({ isLoading: true, error: null });
     try {
       const table = get().tables[tableId];
-      if (!table) throw new Error('Table not found');
+      if (!table) {
+        throw new Error('Table not found');
+      }
 
+      // Prepare the column data
       const newColumn = {
         table_id: tableId,
-        name: column?.name || 'New Column',
-        type: column?.type || 'text',
+        name: columnData?.name || 'New Column',
+        type: columnData?.type || 'text',
         order: table.columns.length,
+        metadata: columnData?.metadata ? JSON.stringify(columnData.metadata) : '{}'
       };
 
-      const { data: columnData, error: columnError } = await supabase
+      // Insert the column in the database
+      const { data: columnResponse, error: columnError } = await supabase
         .from('database_columns')
         .insert(newColumn)
         .select()
         .single();
 
-      if (columnError) throw columnError;
+      if (columnError) {
+        throw new Error(`Failed to create column: ${columnError.message}`);
+      }
+
+      if (!columnResponse) {
+        throw new Error('No response received when creating column');
+      }
 
       // Create cells for the new column
       const cellInserts = table.rows.map(row => ({
         row_id: row.id,
-        column_id: columnData.id,
+        column_id: columnResponse.id,
         content: '',
       }));
 
@@ -325,7 +380,21 @@ export const useDatabase = create<DatabaseState>((set, get) => ({
           .from('database_cells')
           .insert(cellInserts);
 
-        if (cellsError) throw cellsError;
+        if (cellsError) {
+          throw new Error(`Failed to create cells: ${cellsError.message}`);
+        }
+      }
+
+      // Parse metadata
+      let metadata = {};
+      try {
+        if (columnResponse.metadata) {
+          metadata = typeof columnResponse.metadata === 'string' 
+            ? JSON.parse(columnResponse.metadata) 
+            : columnResponse.metadata;
+        }
+      } catch (err) {
+        console.warn('Failed to parse column metadata:', err);
       }
 
       // Update local state
@@ -335,34 +404,38 @@ export const useDatabase = create<DatabaseState>((set, get) => ({
           [tableId]: {
             ...table,
             columns: [...table.columns, {
-              id: columnData.id,
-              name: columnData.name,
-              type: columnData.type as 'text' | 'number',
+              id: columnResponse.id,
+              name: columnResponse.name,
+              type: columnResponse.type,
+              metadata
             }],
             rows: table.rows.map(row => ({
               ...row,
               cells: {
                 ...row.cells,
-                [columnData.id]: {
-                  id: `temp-${columnData.id}-${row.id}`,
+                [columnResponse.id]: {
+                  id: `temp-${columnResponse.id}-${row.id}`,
                   content: '',
-                  type: columnData.type as 'text' | 'number',
+                  type: columnResponse.type,
+                  metadata
                 },
               },
             })),
           },
         },
         isLoading: false,
+        error: null
       }));
     } catch (error) {
       console.error('Error adding column:', error);
       set({ 
         isLoading: false, 
-        error: error instanceof Error ? error.message : 'Failed to add column' 
+        error: error instanceof Error ? error.message : String(error)
       });
+      throw error; // Re-throw the error to be handled by the caller
     }
   },
-
+  
   updateColumn: async (tableId: string, columnId: string, updates: Partial<Omit<Column, 'id'>>) => {
     set({ isLoading: true, error: null });
     try {
@@ -372,35 +445,28 @@ export const useDatabase = create<DatabaseState>((set, get) => ({
       const column = table.columns.find(col => col.id === columnId);
       if (!column) throw new Error('Column not found');
       
+      // Prepare updates, including metadata if present
+      const updateData: any = {
+        name: updates.name !== undefined ? updates.name : column.name,
+        type: updates.type !== undefined ? updates.type : column.type,
+      };
+      
+      // If metadata is provided, stringify it for storage
+      if (updates.metadata) {
+        updateData.metadata = JSON.stringify(updates.metadata);
+      }
+      
       const { error } = await supabase
         .from('database_columns')
-        .update({
-          name: updates.name !== undefined ? updates.name : column.name,
-          type: updates.type !== undefined ? updates.type : column.type,
-        })
+        .update(updateData)
         .eq('id', columnId);
 
       if (error) throw error;
       
-      // If type has changed, update all cells of this column
-      if (updates.type && updates.type !== column.type) {
-        // For simplicity, we're just updating the type in the database
-        // In a real implementation, you might need to convert the data
-        const rowIds = table.rows.map(row => row.id);
-        
-        if (rowIds.length > 0) {
-          const { data: cellsData } = await supabase
-            .from('database_cells')
-            .select('id, row_id')
-            .eq('column_id', columnId)
-            .in('row_id', rowIds);
-            
-          if (cellsData && cellsData.length > 0) {
-            // If we need to transform cell values based on new type,
-            // we would do that here
-          }
-        }
-      }
+      // Calculate new metadata by merging existing with updates
+      const newMetadata = updates.metadata 
+        ? { ...(column.metadata || {}), ...updates.metadata }
+        : column.metadata;
 
       // Update local state
       set(state => ({
@@ -410,7 +476,7 @@ export const useDatabase = create<DatabaseState>((set, get) => ({
             ...table,
             columns: table.columns.map(col => 
               col.id === columnId 
-                ? { ...col, ...updates }
+                ? { ...col, ...updates, metadata: newMetadata }
                 : col
             ),
             rows: table.rows.map(row => ({
@@ -421,6 +487,7 @@ export const useDatabase = create<DatabaseState>((set, get) => ({
                   ? {
                       ...row.cells[columnId],
                       type: updates.type || row.cells[columnId].type,
+                      metadata: newMetadata
                     }
                   : row.cells[columnId],
               },
@@ -540,97 +607,97 @@ export const useDatabase = create<DatabaseState>((set, get) => ({
   },
 
   deleteRow: async (tableId: string, rowId: string) => {
-  set({ isLoading: true, error: null });
-  try {
-    const table = get().tables[tableId];
-    if (!table) throw new Error('Table not found');
-    
-    // Delete from database - cascade should handle related cells
-    const { error } = await supabase
-      .from('database_rows')
-      .delete()
-      .eq('id', rowId);
-
-    if (error) throw error;
-
-    // Update local state
-    set(state => {
-      // Remove the deleted row
-      const updatedRows = table.rows.filter(row => row.id !== rowId);
+    set({ isLoading: true, error: null });
+    try {
+      const table = get().tables[tableId];
+      if (!table) throw new Error('Table not found');
       
-      // Remove the row from selected rows
-      const updatedSelectedRows = { 
-        ...state.selectedRows,
-        [tableId]: (state.selectedRows[tableId] || []).filter(id => id !== rowId)
-      };
-      
-      return {
-        tables: {
-          ...state.tables,
-          [tableId]: {
-            ...table,
-            rows: updatedRows,
-          }
-        },
-        selectedRows: updatedSelectedRows,
-        isLoading: false,
-      };
-    });
-  } catch (error) {
-    console.error('Error deleting row:', error);
-    set({ 
-      isLoading: false, 
-      error: error instanceof Error ? error.message : 'Failed to delete row' 
-    });
-  }
-},
+      // Delete from database - cascade should handle related cells
+      const { error } = await supabase
+        .from('database_rows')
+        .delete()
+        .eq('id', rowId);
+
+      if (error) throw error;
+
+      // Update local state
+      set(state => {
+        // Remove the deleted row
+        const updatedRows = table.rows.filter(row => row.id !== rowId);
+        
+        // Remove the row from selected rows
+        const updatedSelectedRows = { 
+          ...state.selectedRows,
+          [tableId]: (state.selectedRows[tableId] || []).filter(id => id !== rowId)
+        };
+        
+        return {
+          tables: {
+            ...state.tables,
+            [tableId]: {
+              ...table,
+              rows: updatedRows,
+            }
+          },
+          selectedRows: updatedSelectedRows,
+          isLoading: false,
+        };
+      });
+    } catch (error) {
+      console.error('Error deleting row:', error);
+      set({ 
+        isLoading: false, 
+        error: error instanceof Error ? error.message : 'Failed to delete row' 
+      });
+    }
+  },
 
   deleteMultipleRows: async (tableId: string, rowIds: string[]) => {
-  set({ isLoading: true, error: null });
-  try {
-    const table = get().tables[tableId];
-    if (!table) throw new Error('Table not found');
-    
-    if (rowIds.length === 0) return;
-    
-    // Delete all rows in a single operation
-    const { error } = await supabase
-      .from('database_rows')
-      .delete()
-      .eq('table_id', tableId)
-      .in('id', rowIds);
+    set({ isLoading: true, error: null });
+    try {
+      const table = get().tables[tableId];
+      if (!table) throw new Error('Table not found');
       
-    if (error) throw error;
-    
-    // Update local state
-    set(state => {
-      // Filter out all deleted rows
-      const updatedRows = table.rows.filter(row => !rowIds.includes(row.id));
+      if (rowIds.length === 0) return;
       
-      // Clear selection for this table
-      return {
-        tables: {
-          ...state.tables,
-          [tableId]: {
-            ...table,
-            rows: updatedRows,
-          }
-        },
-        selectedRows: {
-          ...state.selectedRows,
-          [tableId]: []
-        },
-        isLoading: false,
-      };
-    });
-  } catch (error) {
-    console.error('Error deleting multiple rows:', error);
-    set({ 
-      isLoading: false, 
-      error: error instanceof Error ? error.message : 'Failed to delete rows' 
-    });
-  }
-},
+      // Delete all rows in a single operation
+      const { error } = await supabase
+        .from('database_rows')
+        .delete()
+        .eq('table_id', tableId)
+        .in('id', rowIds);
+        
+      if (error) throw error;
+      
+      // Update local state
+      set(state => {
+        // Filter out all deleted rows
+        const updatedRows = table.rows.filter(row => !rowIds.includes(row.id));
+        
+        // Clear selection for this table
+        return {
+          tables: {
+            ...state.tables,
+            [tableId]: {
+              ...table,
+              rows: updatedRows,
+            }
+          },
+          selectedRows: {
+            ...state.selectedRows,
+            [tableId]: []
+          },
+          isLoading: false,
+        };
+      });
+    } catch (error) {
+      console.error('Error deleting multiple rows:', error);
+      set({ 
+        isLoading: false, 
+        error: error instanceof Error ? error.message : 'Failed to delete rows' 
+      });
+    }
+  },
 
   updateCell: async (tableId: string, rowId: string, columnId: string, value: string) => {
     try {

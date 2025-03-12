@@ -1,60 +1,71 @@
+// src/components/Database/ColumnPicker.tsx
 import React, { useState, useRef, useEffect } from 'react';
-import { Plus, ChevronRight, Search, Type, Clock, User, Hash, Calendar, ToggleLeft, ListFilter, Percent, DollarSign } from 'lucide-react';
+import { Plus, ChevronRight, Search } from 'lucide-react';
 import { Column } from './types';
 import { CustomColumnDialog } from './CustomColumnDialog';
+import { useColumns, AttributeTemplate, ATTRIBUTE_CATEGORIES } from './useColumns';
 
-// Expanded predefined attributes with more types and metadata
-const PREDEFINED_ATTRIBUTES = [
-  // Text attributes
-  { id: 'name', name: 'Name', type: 'text', icon: Type, category: 'common' },
-  { id: 'description', name: 'Description', type: 'text', icon: Type, category: 'common' },
-  { id: 'email', name: 'Email', type: 'text', icon: Type, category: 'contact' },
-  { id: 'phone', name: 'Phone', type: 'text', icon: Type, category: 'contact' },
-  
-  // ID attributes
-  { id: 'recordId', name: 'Record ID', type: 'text', icon: Hash, category: 'system' },
-  
-  // Time attributes
-  { id: 'createdAt', name: 'Created at', type: 'date', icon: Calendar, category: 'system' },
-  { id: 'updatedAt', name: 'Updated at', type: 'date', icon: Calendar, category: 'system' },
-  { id: 'dueDate', name: 'Due date', type: 'date', icon: Calendar, category: 'common' },
-  
-  // User attributes
-  { id: 'createdBy', name: 'Created by', type: 'user', icon: User, category: 'system' },
-  { id: 'assignedTo', name: 'Assigned to', type: 'user', icon: User, category: 'common' },
-  
-  // Product attributes
-  { id: 'price', name: 'Price', type: 'number', icon: DollarSign, category: 'product' },
-  { id: 'stockLevel', name: 'Stock Level', type: 'number', icon: Hash, category: 'product' },
-  { id: 'sku', name: 'SKU', type: 'text', icon: Hash, category: 'product' },
-  { id: 'discount', name: 'Discount', type: 'number', icon: Percent, category: 'product' },
-  
-  // Status attributes
-  { id: 'status', name: 'Status', type: 'select', icon: ListFilter, category: 'common' },
-  { id: 'active', name: 'Active', type: 'boolean', icon: ToggleLeft, category: 'common' },
-];
+// Import the necessary icons
+import { 
+  Type, 
+  DollarSign, 
+  Calendar, 
+  ToggleLeft, 
+  ListFilter, 
+  Hash, 
+  User 
+} from 'lucide-react';
 
-// Group attributes by category for better organization
-const ATTRIBUTE_CATEGORIES = {
-  common: 'Common Fields',
-  product: 'Product Attributes',
-  contact: 'Contact Information',
-  system: 'System Fields'
+// Map icon components to names for the predefined attributes
+const ICON_MAP: Record<string, React.ElementType> = {
+  'Type': Type,
+  'DollarSign': DollarSign,
+  'Calendar': Calendar,
+  'ToggleLeft': ToggleLeft,
+  'ListFilter': ListFilter,
+  'Hash': Hash,
+  'User': User
 };
 
 interface ColumnPickerProps {
-  onAddColumn: (column: Omit<Column, 'id'>) => void;
+  tableId?: string;
 }
 
-export function ColumnPicker({ onAddColumn }: ColumnPickerProps) {
+export function ColumnPicker({ tableId }: ColumnPickerProps) {
+  const { 
+    predefinedAttributes, 
+    attributeCategories,
+    addPredefinedColumn,
+    addCustomColumn,
+    isLoading
+  } = useColumns(tableId);
+  
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [showCustomDialog, setShowCustomDialog] = useState(false);
   
+  // Add icons to the attributes
+  const attributesWithIcons = predefinedAttributes.map(attr => ({
+    ...attr,
+    icon: attr.id === 'name' ? Type :
+          attr.id === 'description' ? Type :
+          attr.id === 'email' ? Type :
+          attr.id === 'phone' ? Type :
+          attr.id === 'price' ? DollarSign : 
+          attr.id === 'stockLevel' ? Hash :
+          attr.id === 'discount' ? DollarSign :
+          attr.id === 'status' ? ListFilter :
+          attr.id === 'createdAt' ? Calendar :
+          attr.id === 'updatedAt' ? Calendar :
+          attr.id === 'dueDate' ? Calendar :
+          attr.id === 'active' ? ToggleLeft :
+          Type
+  }));
+  
   // Filter attributes based on search query and selected category
-  const filteredAttributes = PREDEFINED_ATTRIBUTES.filter(attr => {
+  const filteredAttributes = attributesWithIcons.filter(attr => {
     const matchesSearch = attr.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory ? attr.category === selectedCategory : true;
     return matchesSearch && matchesCategory;
@@ -67,7 +78,7 @@ export function ColumnPicker({ onAddColumn }: ColumnPickerProps) {
     }
     acc[attr.category].push(attr);
     return acc;
-  }, {} as Record<string, typeof PREDEFINED_ATTRIBUTES>);
+  }, {} as Record<string, typeof attributesWithIcons>);
   
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -86,14 +97,8 @@ export function ColumnPicker({ onAddColumn }: ColumnPickerProps) {
     };
   }, [isOpen]);
 
-  function handleAddAttribute(attribute: typeof PREDEFINED_ATTRIBUTES[0]) {
-    onAddColumn({
-      name: attribute.name,
-      // Handle the 'text' and 'number' types from Column interface
-      type: attribute.type === 'text' || attribute.type === 'number' 
-        ? attribute.type 
-        : 'text', // Default to text for other types for now
-    });
+  function handleAddAttribute(attribute: AttributeTemplate) {
+    addPredefinedColumn(attribute);
     setIsOpen(false);
     setSearchQuery('');
   }
@@ -104,7 +109,7 @@ export function ColumnPicker({ onAddColumn }: ColumnPickerProps) {
   }
   
   function handleCustomColumnCreate(column: { name: string; type: string }) {
-    onAddColumn({
+    addCustomColumn({
       name: column.name,
       type: column.type as 'text' | 'number',
     });
@@ -117,8 +122,13 @@ export function ColumnPicker({ onAddColumn }: ColumnPickerProps) {
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-2 text-gray-400 hover:text-gray-200 text-sm px-3 py-2 rounded hover:bg-gray-800 h-full"
         type="button"
+        disabled={isLoading}
       >
-        <Plus className="h-4 w-4" />
+        {isLoading ? (
+          <div className="animate-spin h-4 w-4 border-t-2 border-blue-500 rounded-full"></div>
+        ) : (
+          <Plus className="h-4 w-4" />
+        )}
         <span>Add column</span>
       </button>
 
@@ -150,7 +160,7 @@ export function ColumnPicker({ onAddColumn }: ColumnPickerProps) {
               >
                 All
               </button>
-              {Object.entries(ATTRIBUTE_CATEGORIES).map(([category, label]) => (
+              {Object.entries(attributeCategories).map(([category, label]) => (
                 <button
                   key={category}
                   className={`px-2 py-1 text-xs rounded-md whitespace-nowrap ${
@@ -171,7 +181,7 @@ export function ColumnPicker({ onAddColumn }: ColumnPickerProps) {
               {Object.entries(attributesByCategory).map(([category, attributes]) => (
                 <div key={category} className="mb-2">
                   <div className="text-xs text-gray-500 px-2 py-1 uppercase">
-                    {ATTRIBUTE_CATEGORIES[category as keyof typeof ATTRIBUTE_CATEGORIES] || category}
+                    {attributeCategories[category as keyof typeof attributeCategories] || category}
                   </div>
                   
                   {attributes.map((attribute) => (
@@ -182,7 +192,7 @@ export function ColumnPicker({ onAddColumn }: ColumnPickerProps) {
                       type="button"
                     >
                       <div className="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-gray-700 rounded">
-                        <attribute.icon className="h-4 w-4 text-gray-400" />
+                        {attribute.icon && <attribute.icon className="h-4 w-4 text-gray-400" />}
                       </div>
                       <div>
                         <div>{attribute.name}</div>

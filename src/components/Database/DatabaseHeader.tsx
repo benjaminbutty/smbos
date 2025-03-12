@@ -1,13 +1,23 @@
+// src/components/Database/DatabaseHeader.tsx
 import React, { useState, useEffect, useRef } from 'react';
-import { GripVertical, Type, DollarSign, Edit2 } from 'lucide-react';
+import { GripVertical, Edit2 } from 'lucide-react';
 import { Column } from './types';
 import { ColumnPicker } from './ColumnPicker';
 import { ColumnSettingsPopover } from './ColumnSettingsPopover';
+import { COLUMN_TYPES } from './useColumns';
+
+// Import the icons for different column types
+import { 
+  Type, 
+  DollarSign, 
+  Calendar, 
+  ToggleLeft, 
+  ListFilter 
+} from 'lucide-react';
 
 interface DatabaseHeaderProps {
   columns: Column[];
-  onAddColumn: () => void;
-  onAddCustomColumn: (column: Omit<Column, 'id'>) => void;
+  tableId: string;
   onUpdateColumn: (columnId: string, updates: Partial<Omit<Column, 'id'>>) => void;
   onDeleteColumn: (columnId: string) => void;
   onReorderColumn?: (dragIndex: number, hoverIndex: number) => void;
@@ -17,8 +27,7 @@ interface DatabaseHeaderProps {
 
 export function DatabaseHeader({ 
   columns, 
-  onAddColumn, 
-  onAddCustomColumn,
+  tableId,
   onUpdateColumn,
   onDeleteColumn,
   onReorderColumn,
@@ -66,9 +75,15 @@ export function DatabaseHeader({
   // Get icon based on column type
   const getColumnIcon = (column: Column) => {
     switch (column.type) {
-      case 'number':
+      case COLUMN_TYPES.NUMBER:
         return <DollarSign className="h-4 w-4 text-gray-500" />;
-      case 'text':
+      case COLUMN_TYPES.SELECT:
+        return <ListFilter className="h-4 w-4 text-gray-500" />;
+      case COLUMN_TYPES.DATE:
+        return <Calendar className="h-4 w-4 text-gray-500" />;
+      case COLUMN_TYPES.BOOLEAN:
+        return <ToggleLeft className="h-4 w-4 text-gray-500" />;
+      case COLUMN_TYPES.TEXT:
       default:
         return <Type className="h-4 w-4 text-gray-500" />;
     }
@@ -190,7 +205,7 @@ export function DatabaseHeader({
       
       {/* Add column button */}
       <div className="border-l border-gray-700">
-        <ColumnPicker onAddColumn={onAddCustomColumn} />
+        <ColumnPicker tableId={tableId} />
       </div>
     </div>
   );

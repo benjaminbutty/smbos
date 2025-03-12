@@ -1,10 +1,12 @@
+// src/components/Database/CustomColumnDialog.tsx
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Type, Hash, Calendar, DollarSign, ToggleLeft, Check } from 'lucide-react';
+import { X, Type, DollarSign, Calendar, ToggleLeft, ListFilter, Check } from 'lucide-react';
+import { COLUMN_TYPES } from './useColumns';
 
 interface CustomColumnDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreateColumn: (column: { name: string; type: string }) => void;
+  onCreateColumn: (column: { name: string; type: string; metadata?: any }) => void;
 }
 
 type ColumnTypeOption = {
@@ -20,22 +22,42 @@ export function CustomColumnDialog({
   onCreateColumn
 }: CustomColumnDialogProps) {
   const [columnName, setColumnName] = useState('');
-  const [selectedType, setSelectedType] = useState('text');
+  const [selectedType, setSelectedType] = useState(COLUMN_TYPES.TEXT);
+  const [selectOptions, setSelectOptions] = useState<string[]>([]);
+  const [newOption, setNewOption] = useState('');
   const dialogRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   
   const columnTypes: ColumnTypeOption[] = [
     {
-      id: 'text',
+      id: COLUMN_TYPES.TEXT,
       name: 'Text',
       icon: Type,
       description: 'Plain text, names, descriptions'
     },
     {
-      id: 'number',
+      id: COLUMN_TYPES.NUMBER,
       name: 'Number',
       icon: DollarSign,
       description: 'Numeric values, prices, quantities'
+    },
+    {
+      id: COLUMN_TYPES.SELECT,
+      name: 'Select',
+      icon: ListFilter,
+      description: 'Choose from a list of options'
+    },
+    {
+      id: COLUMN_TYPES.DATE,
+      name: 'Date',
+      icon: Calendar,
+      description: 'Dates and times'
+    },
+    {
+      id: COLUMN_TYPES.BOOLEAN,
+      name: 'Yes/No',
+      icon: ToggleLeft,
+      description: 'True/false values, checkboxes'
     }
   ];
   
@@ -52,7 +74,9 @@ export function CustomColumnDialog({
   useEffect(() => {
     if (isOpen) {
       setColumnName('');
-      setSelectedType('text');
+      setSelectedType(COLUMN_TYPES.TEXT);
+      setSelectOptions([]);
+      setNewOption('');
     }
   }, [isOpen]);
   
@@ -76,11 +100,38 @@ export function CustomColumnDialog({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (columnName.trim()) {
+      const metadata: any = {};
+      
+      // Add metadata based on column type
+      if (selectedType === COLUMN_TYPES.SELECT && selectOptions.length > 0) {
+        metadata.options = selectOptions;
+      }
+      
       onCreateColumn({
         name: columnName.trim(),
-        type: selectedType
+        type: selectedType,
+        metadata
       });
       onClose();
+    }
+  };
+  
+  const handleAddOption = () => {
+    if (newOption.trim() && !selectOptions.includes(newOption.trim())) {
+      setSelectOptions([...selectOptions, newOption.trim()]);
+      setNewOption('');
+    }
+  };
+  
+  const handleRemoveOption = (option: string) => {
+    setSelectOptions(selectOptions.filter(opt => opt !== option));
+  };
+  
+  // Handle Enter key for adding options
+  const handleOptionKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddOption();
     }
   };
   
@@ -163,6 +214,65 @@ export function CustomColumnDialog({
             </div>
           </div>
           
+          {/* For Select type, show options manager */}
+          {selectedType === COLUMN_TYPES.SELECT && (
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Options
+              </label>
+              
+              <div className="flex gap-2 mb-2">
+                <input
+                  type="text"
+                  value={newOption}
+                  onChange={(e) => setNewOption(e.target.value)}
+                  onKeyDown={handleOptionKeyDown}
+                  className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                  placeholder="Add an option..."
+                />
+                <button
+                  type="button"
+                  onClick={handleAddOption}
+                  disabled={!newOption.trim()}
+                  className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Add
+                </button>
+              </div>
+              
+              {selectOptions.length > 0 ? (
+                <div className="mt-2 space-y-2">
+                  {selectOptions.map((option) => (
+                    <div 
+                      key={option}
+                      className="flex items-center justify-between px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded"
+                    >
+                      <span className="text-gray-900 dark:text-white">{option}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveOption(option)}
+                        className="text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                  Add at least one option for this column type.
+                </p>
+              )}
+            </div>
+          )}
+          
+          {/* Validation warning for Select type with no options */}
+          {selectedType === COLUMN_TYPES.SELECT && selectOptions.length === 0 && (
+            <div className="mb-4 p-3 bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 rounded">
+              Please add at least one option for the Select column type.
+            </div>
+          )}
+          
           {/* Action buttons */}
           <div className="flex justify-end gap-3 pt-3 border-t border-gray-200 dark:border-gray-700">
             <button
@@ -175,7 +285,7 @@ export function CustomColumnDialog({
             <button
               type="submit"
               className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:bg-blue-600 dark:hover:bg-blue-500"
-              disabled={!columnName.trim()}
+              disabled={!columnName.trim() || (selectedType === COLUMN_TYPES.SELECT && selectOptions.length === 0)}
             >
               Create column
             </button>

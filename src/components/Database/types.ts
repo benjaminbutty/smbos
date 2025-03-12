@@ -1,7 +1,14 @@
+// Update types.ts to expand column types
 export interface Column {
   id: string;
   name: string;
-  type: 'text' | 'number';
+  type: 'text' | 'number' | 'select' | 'date' | 'boolean';
+  // Add metadata field for additional type-specific settings
+  metadata?: {
+    options?: string[]; // For select fields
+    format?: string; // For date/number fields
+    // Other type-specific settings
+  };
 }
 
 export interface Cell {
@@ -46,3 +53,4 @@ export interface DatabaseState {
     // Data loading
   fetchUserTables: () => Promise<void>;
 }
+
