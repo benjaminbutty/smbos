@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   Database, 
   Layout, 
@@ -12,24 +11,19 @@ import {
   Settings,
   Grid,
   User,
-  Users,
-  FileText
+  Users
 } from 'lucide-react';
 import { useDatabase } from '../Database/useDatabase';
-import { usePageStore } from '../../stores/pageStore';
 
 // Navigation item type
 type NavItem = {
   name: string;
   icon: React.ElementType;
-  path?: string;
   active?: boolean;
   children?: { id: string; name: string }[];
 };
 
 export function Sidebar() {
-  const location = useLocation();
-  const navigate = useNavigate();
   const { 
     tables, 
     activeTableId, 
@@ -38,29 +32,14 @@ export function Sidebar() {
     renameTable 
   } = useDatabase();
   
-  const { pages, createPage, fetchPages } = usePageStore();
-  
   // Convert tables to array for the sidebar
-  const tablesList = Object.values(tables || {}).map(table => ({
-    id: table.id,
-    name: table.name
-  }));
-  
-  // Convert pages to array for the sidebar
-  const pagesList = pages.map(page => ({
-    id: page.id,
-    name: page.title
-  }));
-  
-  // Check active section based on URL
-  const isTablesActive = location.pathname === '/dashboard';
-  const isPagesActive = location.pathname.startsWith('/pages');
+  const tablesList = Object.values(tables || {});
   
   // Create sections for the sidebar
   const sections: Record<string, NavItem[]> = {
     main: [
-      { name: 'Tables', icon: Database, path: '/dashboard', active: isTablesActive, children: tablesList },
-      { name: 'Pages', icon: FileText, path: '/pages', active: isPagesActive, children: pagesList },
+      { name: 'Tables', icon: Database, active: true, children: tablesList },
+      { name: 'Pages', icon: Layout },
       { name: 'Workflows', icon: GitBranch },
       { name: 'Reports', icon: BarChart3 }
     ],
@@ -72,8 +51,7 @@ export function Sidebar() {
   
   // Track which sections are expanded
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    Tables: isTablesActive,
-    Pages: isPagesActive
+    Tables: true
   });
   
   // Editing state for table names
@@ -97,20 +75,8 @@ export function Sidebar() {
     setEditingTableName('New Table');
   };
   
-  const handleCreateNewPage = async () => {
-    const page = await createPage('Untitled Page');
-    if (page) {
-      navigate(`/pages/edit/${page.id}`);
-    }
-  };
-  
   const handleTableClick = (tableId: string) => {
     setActiveTable(tableId);
-    navigate('/dashboard');
-  };
-  
-  const handlePageClick = (pageId: string) => {
-    navigate(`/pages/edit/${pageId}`);
   };
   
   const startEditingTable = (tableId: string, tableName: string, e: React.MouseEvent) => {
@@ -135,21 +101,14 @@ export function Sidebar() {
     }
   };
   
-  const toggleFavorite = (e: React.MouseEvent, itemId: string) => {
+  const toggleFavorite = (e: React.MouseEvent, tableId: string) => {
     e.stopPropagation();
     setFavorites(prev => 
-      prev.includes(itemId) 
-        ? prev.filter(id => id !== itemId) 
-        : [...prev, itemId]
+      prev.includes(tableId) 
+        ? prev.filter(id => id !== tableId) 
+        : [...prev, tableId]
     );
   };
-  
-  // Load pages when sections are expanded
-  React.useEffect(() => {
-    if (expandedSections.Pages) {
-      fetchPages();
-    }
-  }, [expandedSections.Pages, fetchPages]);
   
   return (
     <div className="h-full w-60 bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col">
@@ -162,40 +121,24 @@ export function Sidebar() {
               <span>FAVORITES</span>
             </div>
             <div className="mt-1 space-y-0.5">
-              {favorites.map(itemId => {
-                const table = tables[itemId];
-                if (table) {
-                  return (
-                    <button
-                      key={`fav-${table.id}`}
-                      className={`w-full flex items-center px-2 py-1.5 rounded-md text-sm ${
-                        activeTableId === table.id 
-                          ? 'bg-gray-200 dark:bg-gray-800 text-gray-900 dark:text-white' 
-                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800/70'
-                      }`}
-                      onClick={() => handleTableClick(table.id)}
-                    >
-                      <Star size={14} className="mr-2 text-amber-400" />
-                      <span className="truncate">{table.name}</span>
-                    </button>
-                  );
-                }
+              {favorites.map(tableId => {
+                const table = tables[tableId];
+                if (!table) return null;
                 
-                const page = pages.find(p => p.id === itemId);
-                if (page) {
-                  return (
-                    <button
-                      key={`fav-${page.id}`}
-                      className="w-full flex items-center px-2 py-1.5 rounded-md text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800/70"
-                      onClick={() => handlePageClick(page.id)}
-                    >
-                      <Star size={14} className="mr-2 text-amber-400" />
-                      <span className="truncate">{page.title}</span>
-                    </button>
-                  );
-                }
-                
-                return null;
+                return (
+                  <button
+                    key={`fav-${table.id}`}
+                    className={`w-full flex items-center px-2 py-1.5 rounded-md text-sm ${
+                      activeTableId === table.id 
+                        ? 'bg-gray-200 dark:bg-gray-800 text-gray-900 dark:text-white' 
+                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800/70'
+                    }`}
+                    onClick={() => handleTableClick(table.id)}
+                  >
+                    <Star size={14} className="mr-2 text-amber-400" />
+                    <span className="truncate">{table.name}</span>
+                  </button>
+                );
               })}
             </div>
           </div>
@@ -212,12 +155,7 @@ export function Sidebar() {
               <div key={item.name} className="mb-1">
                 <div className="flex justify-between items-center">
                   <button
-                    onClick={() => {
-                      if (item.path) {
-                        navigate(item.path);
-                      }
-                      toggleSection(item.name);
-                    }}
+                    onClick={() => toggleSection(item.name)}
                     className={`flex items-center px-2 py-1.5 rounded-md text-sm ${
                       item.active 
                         ? 'text-gray-900 dark:text-white font-medium' 
@@ -246,19 +184,9 @@ export function Sidebar() {
                       <Plus size={14} />
                     </button>
                   )}
-                  
-                  {item.name === 'Pages' && (
-                    <button
-                      onClick={handleCreateNewPage}
-                      className="p-1 rounded text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
-                      title="Create new page"
-                    >
-                      <Plus size={14} />
-                    </button>
-                  )}
                 </div>
                 
-                {/* Children items (tables, pages, etc) */}
+                {/* Children items (tables, etc) */}
                 {item.children && expandedSections[item.name] && (
                   <div className="ml-6 mt-1 space-y-0.5">
                     {item.children.map((child) => (
@@ -268,17 +196,11 @@ export function Sidebar() {
                       >
                         <button
                           className={`flex-1 flex items-center px-2 py-1 rounded-md text-sm ${
-                            (item.name === 'Tables' && activeTableId === child.id) 
+                            activeTableId === child.id 
                               ? 'bg-gray-200 dark:bg-gray-800 text-gray-900 dark:text-white' 
                               : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800/70'
                           }`}
-                          onClick={() => {
-                            if (item.name === 'Tables') {
-                              handleTableClick(child.id);
-                            } else if (item.name === 'Pages') {
-                              handlePageClick(child.id);
-                            }
-                          }}
+                          onClick={() => handleTableClick(child.id)}
                         >
                           {editingTableId === child.id ? (
                             <input
@@ -294,11 +216,7 @@ export function Sidebar() {
                           ) : (
                             <span 
                               className="truncate"
-                              onDoubleClick={(e) => {
-                                if (item.name === 'Tables') {
-                                  startEditingTable(child.id, child.name, e);
-                                }
-                              }}
+                              onDoubleClick={(e) => startEditingTable(child.id, child.name, e)}
                             >
                               {child.name}
                             </span>
