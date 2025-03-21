@@ -7,6 +7,9 @@ import { Sidebar } from './components/UI/Sidebar';
 import { useDatabase } from './components/Database/useDatabase';
 import { AuthPage } from './pages/Auth';
 import { useAuth } from './contexts/AuthContext';
+import { PagesList } from './pages/PagesList';
+import { PageEditor } from './components/PageBuilder/PageEditor';
+import { PageView } from './pages/PageView';
 
 function DashboardLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -51,9 +54,14 @@ function DashboardLayout() {
             isSidebarOpen ? 'lg:pl-60' : ''
           }`}
         >
-          {/* Full-height container for DatabaseTable */}
-          <div className="h-full">
-            <DatabaseTable />
+          {/* Full-height container for content */}
+          <div className="h-full p-4">
+            <Routes>
+              <Route path="/dashboard" element={<DatabaseTable />} />
+              <Route path="/pages" element={<PagesList />} />
+              <Route path="/pages/new" element={<PageEditor />} />
+              <Route path="/pages/edit/:pageId" element={<PageEditor />} />
+            </Routes>
           </div>
         </main>
       </div>
@@ -92,6 +100,14 @@ function App() {
         <Route
           path="/dashboard/*"
           element={isAuthenticated ? <DashboardLayout /> : <Navigate to="/auth" replace />}
+        />
+        <Route
+          path="/pages/*"
+          element={isAuthenticated ? <DashboardLayout /> : <Navigate to="/auth" replace />}
+        />
+        <Route
+          path="/p/:pageSlug"
+          element={<PageView />}
         />
         <Route
           path="/"
