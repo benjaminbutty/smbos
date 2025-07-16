@@ -34,6 +34,8 @@ export interface DatabaseState {
 export const useDatabase = create<DatabaseState>((set, get) => ({
   tables: {},
   activeTableId: null,
+  pages: {},
+  activePageId: null,
   selectedRows: {},
   isLoading: false,
   error: null,
@@ -46,6 +48,16 @@ export const useDatabase = create<DatabaseState>((set, get) => ({
       if (authError) throw new Error('Authentication error: ' + authError.message);
       if (!user) throw new Error('No authenticated user found');
 
+      // Fetch pages
+      const { data: pagesData, error: pagesError } = await supabase
+        .from('pages')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+        
+      if (pagesError) throw pagesError;
+      if (!pagesData) throw new Error('No pages data received');
+
       // Fetch tables
       const { data: tablesData, error: tablesError } = await supabase
         .from('database_tables')
@@ -57,12 +69,30 @@ export const useDatabase = create<DatabaseState>((set, get) => ({
       if (!tablesData) throw new Error('No tables data received');
       
       const tables: Record<string, Table> = {};
+      const pages: Record<string, Page> = {};
       let activeTableId = get().activeTableId;
+      let activePageId = get().activePageId;
+      
+      // Process pages
+      if (pagesData.length > 0) {
+        for (const pageData of pagesData) {
+          if (!activeTableId && !activePageId) activePageId = pageData.id;
+          
+          pages[pageData.id] = {
+            id: pageData.id,
+            name: pageData.name,
+            user_id: pageData.user_id,
+            created_at: pageData.created_at,
+            updated_at: pageData.updated_at,
+            content: pageData.content || {}
+          };
+        }
+      }
       
       // If we have tables, process them
       if (tablesData.length > 0) {
         for (const tableData of tablesData) {
-          if (!activeTableId) activeTableId = tableData.id;
+          if (!activeTableId && !activePageId) activeTableId = tableData.id;
           
           // Fetch columns for this table
           const { data: columnsData, error: columnsError } = await supabase
@@ -274,7 +304,7 @@ export const useDatabase = create<DatabaseState>((set, get) => ({
 
   setActiveTable: (tableId: string) => {
     if (get().tables[tableId]) {
-      set({ activeTableId: tableId });
+      set({ activeTableId: tableId, activePageId: null });
     }
   },
 
@@ -332,6 +362,123 @@ export const useDatabase = create<DatabaseState>((set, get) => ({
       set({ 
         isLoading: false, 
         error: error instanceof Error ? error.message : 'Failed to delete table' 
+      });
+    }
+  },
+
+  createPage: async (name) => {
+    set({ isLoading: true, error: null });
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData.user?.id;
+
+      if (!userId) {
+        throw new Error('User not authenticated');
+      }
+  
+      const { data: pageData, error: pageError } = await supabase
+        .from('pages')
+        .insert({ 
+          name, 
+          user_id: userId,
+          content: {}
+        })
+        .select()
+        .single();
+        
+      if (pageError) throw pageError;
+      
+      const newPage: Page = {
+        id: pageData.id,
+        name: pageData.name,
+        user_id: pageData.user_id,
+        created_at: pageData.created_at,
+        updated_at: pageData.updated_at,
+        content: pageData.content || {}
+      };
+      
+      set(state => ({
+        pages: {
+          ...state.pages,
+          [pageData.id]: newPage,
+        },
+        activePageId: pageData.id,
+        activeTableId: null,
+        isLoading: false,
+      }));
+      
+      return pageData.id;
+      
+    } catch (error) {
+      console.error('Error creating page:', error);
+      set({ 
+        isLoading: false, 
+        error: error instanceof Error ? error.message : 'Failed to create page' 
+      });
+      return '';
+    }
+  },
+
+  setActivePage: (pageId: string) => {
+    if (get().pages[pageId]) {
+      set({ activePageId: pageId, activeTableId: null });
+    }
+  },
+
+  renamePage: async (pageId: string, name: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const { error } = await supabase
+        .from('pages')
+        .update({ name })
+        .eq('id', pageId);
+
+      if (error) throw error;
+
+      set(state => ({
+        pages: {
+          ...state.pages,
+          [pageId]: {
+            ...state.pages[pageId],
+            name,
+          },
+        },
+        isLoading: false,
+      }));
+    } catch (error) {
+      console.error('Error renaming page:', error);
+      set({ 
+        isLoading: false, 
+        error: error instanceof Error ? error.message : 'Failed to rename page' 
+      });
+    }
+  },
+
+  deletePage: async (pageId: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const { error } = await supabase
+        .from('pages')
+        .delete()
+        .eq('id', pageId);
+
+      if (error) throw error;
+
+      set(state => {
+        const { [pageId]: _, ...remainingPages } = state.pages;
+        return {
+          pages: remainingPages,
+          activePageId: state.activePageId === pageId 
+            ? (Object.keys(remainingPages)[0] || null) 
+            : state.activePageId,
+          isLoading: false,
+        };
+      });
+    } catch (error) {
+      console.error('Error deleting page:', error);
+      set({ 
+        isLoading: false, 
+        error: error instanceof Error ? error.message : 'Failed to delete page' 
       });
     }
   },

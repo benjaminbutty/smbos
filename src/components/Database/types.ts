@@ -32,6 +32,8 @@ export interface Table {
 export interface DatabaseState {
   tables: Record<string, Table>;
   activeTableId: string | null;
+  pages: Record<string, Page>;
+  activePageId: string | null;
   selectedRows: Record<string, string[]>; // tableId -> rowIds[]
   
   // Table operations
@@ -42,6 +44,12 @@ export interface DatabaseState {
   // Column operations
   addColumn: (tableId: string) => void;
   addCustomColumn: (tableId: string, column: Omit<Column, 'id'>) => void;
+  
+  // Page operations
+  createPage: (name: string) => Promise<string>;
+  renamePage: (pageId: string, name: string) => Promise<void>;
+  deletePage: (pageId: string) => Promise<void>;
+  setActivePage: (pageId: string) => void;
   
   // Row operations
   addRow: (tableId: string) => void;
@@ -54,3 +62,11 @@ export interface DatabaseState {
   fetchUserTables: () => Promise<void>;
 }
 
+export interface Page {
+  id: string;
+  name: string;
+  user_id: string;
+  created_at: string;
+  updated_at: string;
+  content: any; // JSON content
+}

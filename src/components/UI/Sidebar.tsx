@@ -26,20 +26,26 @@ type NavItem = {
 export function Sidebar() {
   const { 
     tables, 
+    pages,
     activeTableId, 
+    activePageId,
     createTable, 
+    createPage,
     setActiveTable, 
-    renameTable 
+    setActivePage,
+    renameTable,
+    renamePage
   } = useDatabase();
   
   // Convert tables to array for the sidebar
   const tablesList = Object.values(tables || {});
+  const pagesList = Object.values(pages || {});
   
   // Create sections for the sidebar
   const sections: Record<string, NavItem[]> = {
     main: [
       { name: 'Tables', icon: Database, active: true, children: tablesList },
-      { name: 'Pages', icon: Layout },
+      { name: 'Pages', icon: Layout, children: pagesList },
       { name: 'Workflows', icon: GitBranch },
       { name: 'Reports', icon: BarChart3 }
     ],
@@ -58,6 +64,10 @@ export function Sidebar() {
   const [editingTableId, setEditingTableId] = useState<string | null>(null);
   const [editingTableName, setEditingTableName] = useState('');
   
+  // Editing state for page names
+  const [editingPageId, setEditingPageId] = useState<string | null>(null);
+  const [editingPageName, setEditingPageName] = useState('');
+  
   // Favorite tables
   const [favorites, setFavorites] = useState<string[]>([]);
   
@@ -75,8 +85,19 @@ export function Sidebar() {
     setEditingTableName('New Table');
   };
   
+  const handleCreateNewPage = async () => {
+    const pageId = await createPage('New Page');
+    setExpandedSections(prev => ({ ...prev, Pages: true }));
+    setEditingPageId(pageId);
+    setEditingPageName('New Page');
+  };
+  
   const handleTableClick = (tableId: string) => {
     setActiveTable(tableId);
+  };
+  
+  const handlePageClick = (pageId: string) => {
+    setActivePage(pageId);
   };
   
   const startEditingTable = (tableId: string, tableName: string, e: React.MouseEvent) => {
@@ -85,19 +106,30 @@ export function Sidebar() {
     setEditingTableName(tableName);
   };
   
-  const saveTableName = async () => {
+  const startEditingPage = (pageId: string, pageName: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingPageId(pageId);
+    setEditingPageName(pageName);
+  };
+  
+  const saveItemName = async () => {
     if (editingTableId) {
       const newName = editingTableName.trim() || 'Untitled Table';
       await renameTable(editingTableId, newName);
       setEditingTableId(null);
+    } else if (editingPageId) {
+      const newName = editingPageName.trim() || 'Untitled Page';
+      await renamePage(editingPageId, newName);
+      setEditingPageId(null);
     }
   };
   
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
-      saveTableName();
+      saveItemName();
     } else if (e.key === 'Escape') {
       setEditingTableId(null);
+      setEditingPageId(null);
     }
   };
   
@@ -175,11 +207,11 @@ export function Sidebar() {
                     )}
                   </button>
                   
-                  {item.name === 'Tables' && (
+                  {(item.name === 'Tables' || item.name === 'Pages') && (
                     <button
-                      onClick={handleCreateNewTable}
+                      onClick={item.name === 'Tables' ? handleCreateNewTable : handleCreateNewPage}
                       className="p-1 rounded text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
-                      title="Create new table"
+                      title={`Create new ${item.name.toLowerCase().slice(0, -1)}`}
                     >
                       <Plus size={14} />
                     </button>
@@ -196,18 +228,21 @@ export function Sidebar() {
                       >
                         <button
                           className={`flex-1 flex items-center px-2 py-1 rounded-md text-sm ${
-                            activeTableId === child.id 
+                            (activeTableId === child.id || activePageId === child.id)
                               ? 'bg-gray-200 dark:bg-gray-800 text-gray-900 dark:text-white' 
                               : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800/70'
                           }`}
-                          onClick={() => handleTableClick(child.id)}
+                          onClick={() => item.name === 'Tables' ? handleTableClick(child.id) : handlePageClick(child.id)}
                         >
-                          {editingTableId === child.id ? (
+                          {(editingTableId === child.id || editingPageId === child.id) ? (
                             <input
                               type="text"
-                              value={editingTableName}
-                              onChange={(e) => setEditingTableName(e.target.value)}
-                              onBlur={saveTableName}
+                              value={editingTableId === child.id ? editingTableName : editingPageName}
+                              onChange={(e) => editingTableId === child.id 
+                                ? setEditingTableName(e.target.value) 
+                                : setEditingPageName(e.target.value)
+                              }
+                              onBlur={saveItemName}
                               onKeyDown={handleKeyDown}
                               className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-1 py-0.5 rounded border border-gray-300 dark:border-gray-700 w-full focus:outline-none focus:ring-1 focus:ring-blue-500"
                               autoFocus
@@ -216,21 +251,26 @@ export function Sidebar() {
                           ) : (
                             <span 
                               className="truncate"
-                              onDoubleClick={(e) => startEditingTable(child.id, child.name, e)}
+                              onDoubleClick={(e) => item.name === 'Tables' 
+                                ? startEditingTable(child.id, child.name, e)
+                                : startEditingPage(child.id, child.name, e)
+                              }
                             >
                               {child.name}
                             </span>
                           )}
                         </button>
                         
-                        <button 
-                          className={`p-1 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-amber-400 focus:opacity-100 ${
-                            favorites.includes(child.id) ? 'opacity-100 text-amber-400' : ''
-                          }`}
-                          onClick={(e) => toggleFavorite(e, child.id)}
-                        >
-                          <Star size={12} />
-                        </button>
+                        {item.name === 'Tables' && (
+                          <button 
+                            className={`p-1 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-amber-400 focus:opacity-100 ${
+                              favorites.includes(child.id) ? 'opacity-100 text-amber-400' : ''
+                            }`}
+                            onClick={(e) => toggleFavorite(e, child.id)}
+                          >
+                            <Star size={12} />
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>

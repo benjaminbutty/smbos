@@ -8,10 +8,45 @@ import { useDatabase } from './components/Database/useDatabase';
 import { AuthPage } from './pages/Auth';
 import { useAuth } from './contexts/AuthContext';
 
+function PageContent() {
+  const { pages, activePageId } = useDatabase();
+  const activePage = activePageId ? pages[activePageId] : null;
+  
+  if (!activePage) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-gray-50 dark:bg-gray-800">
+        <div className="text-center p-8">
+          <p className="text-gray-500 dark:text-gray-400">No page selected</p>
+        </div>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="w-full h-full flex items-center justify-center bg-gray-50 dark:bg-gray-800">
+      <div className="text-center p-8">
+        <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">
+          {activePage.name}
+        </h2>
+        <p className="text-gray-500 dark:text-gray-400">
+          This is an empty page. Page functionality will be implemented later.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function DashboardLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const { tables, activeTableId, fetchUserTables } = useDatabase();
+  const { tables, pages, activeTableId, activePageId, fetchUserTables } = useDatabase();
   const activeTable = activeTableId ? tables[activeTableId] : null;
+  const activePage = activePageId ? pages[activePageId] : null;
+  
+  const getTitle = () => {
+    if (activeTable) return activeTable.name;
+    if (activePage) return activePage.name;
+    return 'Dashboard';
+  };
   
   useEffect(() => {
     fetchUserTables();
@@ -20,7 +55,7 @@ function DashboardLayout() {
   return (
     <div className="h-screen flex flex-col bg-gray-100 dark:bg-gray-950">
       {/* Header */}
-      <Header title={activeTable?.name || 'Dashboard'} />
+      <Header title={getTitle()} />
       
       {/* Mobile sidebar toggle button */}
       <button
@@ -53,7 +88,17 @@ function DashboardLayout() {
         >
           {/* Full-height container for DatabaseTable */}
           <div className="h-full">
-            <DatabaseTable />
+            {activeTableId ? (
+              <DatabaseTable />
+            ) : activePageId ? (
+              <PageContent />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gray-50 dark:bg-gray-800">
+                <div className="text-center p-8">
+                  <p className="text-gray-500 dark:text-gray-400">Select a table or page to get started</p>
+                </div>
+              </div>
+            )}
           </div>
         </main>
       </div>
