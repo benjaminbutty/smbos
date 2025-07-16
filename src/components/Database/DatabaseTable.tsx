@@ -1,9 +1,8 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { ChevronDown, ChevronUp, Plus, Filter, Settings, MoreHorizontal } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, Filter, Settings, MoreHorizontal, Download, Copy, Trash2 } from 'lucide-react';
 import { DatabaseRow } from './DatabaseRow';
 import { useDatabase } from './useDatabase';
 import { Column } from './types';
-import { Trash2 } from 'lucide-react';
 import { DatabaseHeader } from './DatabaseHeader';
 
 interface ColumnResizeData {
@@ -17,6 +16,7 @@ export function DatabaseTable() {
     tables,
     activeTableId,
     selectedRows,
+    deleteTable,
     addColumn,
     updateColumn,
     deleteColumn,
@@ -39,7 +39,9 @@ export function DatabaseTable() {
   const [resizing, setResizing] = useState<ColumnResizeData | null>(null);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
   const [selectedCellPosition, setSelectedCellPosition] = useState<{rowId: string; columnId: string} | null>(null);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
   const tableRef = useRef<HTMLDivElement>(null);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
   
   // Calculate total width
   const totalTableWidth = React.useMemo(() => {
@@ -204,6 +206,91 @@ export function DatabaseTable() {
     }
   };
   
+  // Handle export data
+  const handleExportData = () => {
+    if (!table) return;
+    
+    // Create CSV content
+    const headers = columns.map(col => col.name).join(',');
+    const csvRows = rows.map(row => 
+      columns.map(col => {
+        const cell = row.cells[col.id];
+        const content = cell?.content || '';
+        // Escape quotes and wrap in quotes if contains comma
+        return content.includes(',') || content.includes('"') 
+          ? `"${content.replace(/"/g, '""')}"` 
+          : content;
+      }).join(',')
+    );
+    
+    const csvContent = [headers, ...csvRows].join('\n');
+    
+    // Create and download file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${table.name}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    setShowMoreMenu(false);
+  };
+  
+  // Handle duplicate table
+  const handleDuplicateTable = async () => {
+    if (!table) return;
+    
+    try {
+      // Create a new table with the same name + " (Copy)"
+      const newTableId = await createTable(`${table.name} (Copy)`);
+      
+      // Note: In a full implementation, you would also copy the columns and data
+      // For now, this creates an empty table with default columns
+      
+      setShowMoreMenu(false);
+    } catch (error) {
+      console.error('Error duplicating table:', error);
+    }
+  };
+  
+  // Handle delete table
+  const handleDeleteTable = async () => {
+    if (!table) return;
+    
+    const isConfirmed = window.confirm(
+      `Are you sure you want to delete the table "${table.name}"? This action cannot be undone and will permanently delete all data in this table.`
+    );
+    
+    if (isConfirmed) {
+      try {
+        await deleteTable(table.id);
+        setShowMoreMenu(false);
+      } catch (error) {
+        console.error('Error deleting table:', error);
+      }
+    }
+  };
+  
+  // Close more menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(event.target as Node)) {
+        setShowMoreMenu(false);
+      }
+    };
+    
+    if (showMoreMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showMoreMenu]);
+  
   if (!table) {
     return (
       <div className="w-full h-full flex items-center justify-center bg-gray-50 dark:bg-gray-800">
@@ -242,9 +329,46 @@ export function DatabaseTable() {
           <button className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
             <Settings size={16} />
           </button>
-          <button className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
-            <MoreHorizontal size={16} />
-          </button>
+          
+          {/* More menu */}
+          <div className="relative" ref={moreMenuRef}>
+            <button 
+              className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"
+              onClick={() => setShowMoreMenu(!showMoreMenu)}
+            >
+              <MoreHorizontal size={16} />
+            </button>
+            
+            {showMoreMenu && (
+              <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg py-1 z-50 border border-gray-200 dark:border-gray-700">
+                <button
+                  onClick={handleExportData}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  <Download size={14} />
+                  Export as CSV
+                </button>
+                
+                <button
+                  onClick={handleDuplicateTable}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  <Copy size={14} />
+                  Duplicate Table
+                </button>
+                
+                <div className="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+                
+                <button
+                  onClick={handleDeleteTable}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                >
+                  <Trash2 size={14} />
+                  Delete Table
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
       
@@ -255,8 +379,7 @@ export function DatabaseTable() {
           <div className="sticky top-0 z-10">
             <DatabaseHeader 
               columns={columns}
-              onAddColumn={handleAddColumn}
-              onAddCustomColumn={handleAddCustomColumn}
+              tableId={activeTableId || ''}
               onUpdateColumn={handleUpdateColumn}
               onDeleteColumn={handleDeleteColumn}
               columnWidths={columnWidths}
