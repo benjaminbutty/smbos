@@ -50,6 +50,7 @@ export interface DatabaseState {
   renamePage: (pageId: string, name: string) => Promise<void>;
   deletePage: (pageId: string) => Promise<void>;
   setActivePage: (pageId: string) => void;
+  updatePageContent: (pageId: string, content: any) => Promise<void>;
   
   // Row operations
   addRow: (tableId: string) => void;

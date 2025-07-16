@@ -909,6 +909,35 @@ export const useDatabase = create<DatabaseState>((set, get) => ({
     }
   },
 
+  updatePageContent: async (pageId: string, content: any) => {
+    try {
+      const { error } = await supabase
+        .from('pages')
+        .update({ 
+          content: content,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', pageId);
+
+      if (error) throw error;
+
+      // Update local state
+      set(state => ({
+        pages: {
+          ...state.pages,
+          [pageId]: {
+            ...state.pages[pageId],
+            content: content,
+            updated_at: new Date().toISOString()
+          },
+        },
+      }));
+    } catch (error) {
+      console.error('Error updating page content:', error);
+      // Don't set global error state for content updates to avoid disrupting the editing experience
+    }
+  },
+
   toggleRowSelection: (tableId: string, rowId: string) => {
     set(state => {
       const currentSelected = state.selectedRows[tableId] || [];

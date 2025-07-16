@@ -7,9 +7,10 @@ import { Sidebar } from './components/UI/Sidebar';
 import { useDatabase } from './components/Database/useDatabase';
 import { AuthPage } from './pages/Auth';
 import { useAuth } from './contexts/AuthContext';
+import { PageEditor } from './components/Page/PageEditor';
 
 function PageContent() {
-  const { pages, activePageId, deletePage } = useDatabase();
+  const { pages, activePageId, deletePage, updatePageContent } = useDatabase();
   const activePage = activePageId ? pages[activePageId] : null;
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
@@ -59,6 +60,16 @@ function PageContent() {
     };
   }, [showMoreMenu]);
   
+  // Handle content changes with debouncing to avoid too many database calls
+  const handleContentChange = React.useCallback(
+    debounce((content: any) => {
+      if (activePage) {
+        updatePageContent(activePage.id, content);
+      }
+    }, 1000), // Save after 1 second of no changes
+    [activePage, updatePageContent]
+  );
+  
   return (
     <div className="h-full flex flex-col bg-white dark:bg-gray-900 overflow-hidden">
       {/* Page Header Controls - matches table header */}
@@ -94,17 +105,27 @@ function PageContent() {
       </div>
       
       {/* Page Content */}
-      <div className="flex-1 flex items-center justify-center bg-gray-50 dark:bg-gray-800">
-        <div className="text-center p-8">
-          <p className="text-gray-500 dark:text-gray-400">
-            This is an empty page. Page functionality will be implemented later.
-          </p>
-        </div>
+      <div className="flex-1 bg-white dark:bg-gray-900 overflow-auto">
+        <PageEditor
+          initialContent={activePage.content}
+          onContentChange={handleContentChange}
+        />
       </div>
     </div>
   );
 }
 
+// Simple debounce utility function
+function debounce<T extends (...args: any[]) => any>(
+  func: T,
+  wait: number
+): (...args: Parameters<T>) => void {
+  let timeout: NodeJS.Timeout;
+  return (...args: Parameters<T>) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+}
 function DashboardLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const { tables, pages, activeTableId, activePageId, fetchUserTables } = useDatabase();
