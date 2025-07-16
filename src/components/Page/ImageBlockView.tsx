@@ -44,18 +44,18 @@ export function ImageBlockView({
   if (isEditing || !block.url) {
     return (
       <div 
-        className={`w-full border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center ${
+        className={`w-48 h-48 mx-auto border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center flex flex-col justify-center ${
           isFocused ? 'border-blue-500 dark:border-blue-400' : ''
         }`}
         onClick={onFocus}
       >
-        <div className="flex flex-col items-center gap-3">
+        <div className="flex flex-col items-center gap-2">
           <div className="w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
             <Upload className="w-6 h-6 text-gray-500 dark:text-gray-400" />
           </div>
           <div>
             <p className="text-gray-700 dark:text-gray-300 font-medium">Upload an image</p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <p className="text-xs text-gray-500 dark:text-gray-400">
               Click to browse or drag and drop
             </p>
           </div>
@@ -68,7 +68,7 @@ export function ImageBlockView({
           />
           <label
             htmlFor={`image-upload-${block.id}`}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-500 cursor-pointer"
+            className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-500 cursor-pointer text-sm"
           >
             Choose Image
           </label>
@@ -97,7 +97,7 @@ export function ImageBlockView({
         <img
           src={block.url}
           alt={block.alt || 'Image'}
-          className="w-full h-auto rounded-lg shadow-sm"
+          className="w-48 h-48 object-cover rounded-lg shadow-sm mx-auto"
         />
         {isFocused && (
           <div className="absolute top-2 right-2 flex gap-2">
