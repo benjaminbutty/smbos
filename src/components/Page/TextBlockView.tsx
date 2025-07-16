@@ -55,16 +55,16 @@ export function TextBlockView({
           if (node.type.name === 'heading') {
             return `Heading ${node.attrs.level}`;
           }
-          return 'Type \'/\' for commands...';
+          return "Type '/' for commands...";
         },
         showOnlyWhenEditable: true,
-        showOnlyCurrent: false,
+        showOnlyCurrent: true,
       }),
     ],
     content: block.doc,
     editorProps: {
       attributes: {
-        class: 'prose prose-block prose-lg max-w-none focus:outline-none dark:prose-invert prose-headings:font-semibold prose-h1:text-3xl prose-h2:text-2xl prose-h3:text-xl prose-p:text-gray-700 dark:prose-p:text-gray-300 prose-p:leading-relaxed prose-li:text-gray-700 dark:prose-li:text-gray-300',
+        class: 'prose prose-block prose-lg max-w-none focus:outline-none dark:prose-invert prose-headings:font-semibold prose-h1:text-3xl prose-h2:text-2xl prose-h3:text-xl prose-p:text-gray-700 dark:prose-p:text-gray-300 prose-p:leading-relaxed prose-li:text-gray-700 dark:prose-li:text-gray-300 min-h-[1.5rem]',
       },
       handleKeyDown: (view, event) => {
         const { state } = view;

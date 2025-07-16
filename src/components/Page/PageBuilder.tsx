@@ -120,6 +120,52 @@ export function PageBuilder({ blocks, onBlocksChange }: PageBuilderProps) {
     }
   };
 
+  const handleBlockDuplicate = (blockId: string) => {
+    const blockIndex = blocks.findIndex(block => block.id === blockId);
+    if (blockIndex === -1) return;
+
+    const originalBlock = blocks[blockIndex];
+    let duplicatedBlock: Block;
+
+    // Create a duplicate based on block type
+    switch (originalBlock.type) {
+      case 'text':
+        duplicatedBlock = {
+          ...createTextBlock(originalBlock.doc),
+          id: crypto.randomUUID(), // Ensure unique ID
+        };
+        break;
+      case 'image':
+        duplicatedBlock = {
+          ...createImageBlock(),
+          id: crypto.randomUUID(),
+          url: originalBlock.url,
+          alt: originalBlock.alt,
+          caption: originalBlock.caption,
+        };
+        break;
+      case 'record-link':
+        duplicatedBlock = {
+          ...createRecordLinkBlock(),
+          id: crypto.randomUUID(),
+          recordId: originalBlock.recordId,
+          recordType: originalBlock.recordType,
+          title: originalBlock.title,
+        };
+        break;
+      default:
+        return;
+    }
+
+    const newBlocks = [
+      ...blocks.slice(0, blockIndex + 1),
+      duplicatedBlock,
+      ...blocks.slice(blockIndex + 1)
+    ];
+    updateBlocks(newBlocks);
+    setFocusedBlockId(duplicatedBlock.id);
+  };
+
   const handleBlockEnter = (blockId: string) => {
     const blockIndex = blocks.findIndex(block => block.id === blockId);
     const newBlock = createTextBlock();
@@ -218,6 +264,7 @@ export function PageBuilder({ blocks, onBlocksChange }: PageBuilderProps) {
                   block={block}
                   onChange={(updatedBlock) => handleBlockChange(block.id, updatedBlock)}
                   onDelete={() => handleBlockDelete(block.id)}
+                  onDuplicate={() => handleBlockDuplicate(block.id)}
                   onEnter={() => handleBlockEnter(block.id)}
                   onArrowUp={() => handleBlockArrowUp(block.id)}
                   onArrowDown={() => handleBlockArrowDown(block.id)}

@@ -69,7 +69,7 @@ export function RecordLinkBlockView({
 
   return (
     <div 
-      className={`w-full group ${isFocused ? 'ring-2 ring-blue-500 ring-opacity-50 rounded-lg' : ''}`}
+      className="w-full group"
       onClick={onFocus}
     >
       <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 transition-colors">

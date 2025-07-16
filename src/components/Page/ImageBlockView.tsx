@@ -90,7 +90,7 @@ export function ImageBlockView({
 
   return (
     <div 
-      className={`w-full group ${isFocused ? 'ring-2 ring-blue-500 ring-opacity-50 rounded-lg' : ''}`}
+      className="w-full group"
       onClick={onFocus}
     >
       <div className="relative">
