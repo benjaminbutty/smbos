@@ -11,6 +11,7 @@ interface DatabaseRowProps {
   onCellUpdate: (columnId: string, value: string) => void;
   onCellFocus: (rowId: string, columnId: string) => void;
   columnWidths: Record<string, number>;
+  tableDensity: 'compact' | 'normal' | 'comfortable';
 }
 
 export function DatabaseRow({
@@ -21,6 +22,7 @@ export function DatabaseRow({
   onCellUpdate,
   onCellFocus,
   columnWidths,
+  tableDensity,
 }: DatabaseRowProps) {
   const [hovered, setHovered] = React.useState(false);
   
@@ -69,6 +71,7 @@ export function DatabaseRow({
             isSelected={isSelected}
             rowHovered={hovered}
             onFocus={() => onCellFocus(row.id, column.id)}
+            tableDensity={tableDensity}
           />
         </div>
       ))}

@@ -440,6 +440,7 @@ export function DatabaseTable() {
                   onCellUpdate={(columnId, value) => handleUpdateCell(row.id, columnId, value)}
                   onCellFocus={(rowId) => handleCellFocus(row.id, rowId)}
                   columnWidths={columnWidths}
+                  tableDensity={tableDensity}
                 />
               ))
             ) : (

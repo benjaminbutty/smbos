@@ -9,6 +9,7 @@ interface SelectCellProps {
   rowHovered: boolean;
   onFocus: () => void;
   options?: string[];
+  tableDensity: 'compact' | 'normal' | 'comfortable';
 }
 
 export function SelectCell({ 
@@ -17,10 +18,24 @@ export function SelectCell({
   isSelected, 
   rowHovered, 
   onFocus,
-  options = []
+  options = [],
+  tableDensity
 }: SelectCellProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [dropdownRef, setDropdownRef] = useState<HTMLDivElement | null>(null);
+  
+  // Get table density styles
+  const getDensityStyles = () => {
+    switch (tableDensity) {
+      case 'compact':
+        return 'min-h-[1.75rem]'; // 28px
+      case 'comfortable':
+        return 'min-h-[3rem]'; // 48px
+      case 'normal':
+      default:
+        return 'min-h-[2.25rem]'; // 36px
+    }
+  };
   
   // Get options from metadata or use default empty array
   const cellOptions = options.length > 0 
@@ -83,7 +98,7 @@ export function SelectCell({
     <div
       ref={setDropdownRef}
       className={`
-        w-full min-h-[2.25rem] h-full px-3 py-1.5 transition-colors relative database-cell-transition
+        w-full ${getDensityStyles()} h-full px-3 py-1.5 transition-colors relative database-cell-transition
         ${isSelected 
           ? 'bg-blue-50 dark:bg-blue-900/10' 
           : isOpen 

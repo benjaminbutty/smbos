@@ -8,6 +8,7 @@ interface BooleanCellProps {
   isSelected: boolean;
   rowHovered: boolean;
   onFocus: () => void;
+  tableDensity: 'compact' | 'normal' | 'comfortable';
 }
 
 export function BooleanCell({ 
@@ -15,10 +16,24 @@ export function BooleanCell({
   onUpdate, 
   isSelected, 
   rowHovered, 
-  onFocus 
+  onFocus,
+  tableDensity
 }: BooleanCellProps) {
   // Convert string value to boolean
   const isChecked = cell.content === 'true';
+  
+  // Get table density styles
+  const getDensityStyles = () => {
+    switch (tableDensity) {
+      case 'compact':
+        return 'min-h-[1.75rem]'; // 28px
+      case 'comfortable':
+        return 'min-h-[3rem]'; // 48px
+      case 'normal':
+      default:
+        return 'min-h-[2.25rem]'; // 36px
+    }
+  };
   
   const toggleValue = () => {
     onFocus();
@@ -28,7 +43,7 @@ export function BooleanCell({
   return (
     <div
       className={`
-        w-full min-h-[2.25rem] h-full px-3 py-1.5 flex items-center justify-center transition-colors relative database-cell-transition
+        w-full ${getDensityStyles()} h-full px-3 py-1.5 flex items-center justify-center transition-colors relative database-cell-transition
         ${isSelected 
           ? 'bg-blue-50 dark:bg-blue-900/10' 
           : rowHovered 

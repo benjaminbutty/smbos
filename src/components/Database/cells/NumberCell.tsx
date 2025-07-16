@@ -8,6 +8,7 @@ interface NumberCellProps {
   rowHovered: boolean;
   onFocus: () => void;
   format?: 'plain' | 'currency' | 'percent';
+  tableDensity: 'compact' | 'normal' | 'comfortable';
 }
 
 export function NumberCell({ 
@@ -16,10 +17,24 @@ export function NumberCell({
   isSelected, 
   rowHovered, 
   onFocus,
-  format = 'plain'
+  format = 'plain',
+  tableDensity
 }: NumberCellProps) {
   const [isFocused, setIsFocused] = useState(false);
   const [inputValue, setInputValue] = useState(cell.content || '');
+  
+  // Get table density styles
+  const getDensityStyles = () => {
+    switch (tableDensity) {
+      case 'compact':
+        return 'min-h-[1.75rem]'; // 28px
+      case 'comfortable':
+        return 'min-h-[3rem]'; // 48px
+      case 'normal':
+      default:
+        return 'min-h-[2.25rem]'; // 36px
+    }
+  };
   
   // Update input value when cell content changes
   useEffect(() => {
@@ -79,7 +94,7 @@ export function NumberCell({
   return (
     <div
       className={`
-        w-full min-h-[2.25rem] h-full px-3 py-1.5 transition-colors relative database-cell-transition
+        w-full ${getDensityStyles()} h-full px-3 py-1.5 transition-colors relative database-cell-transition
         ${isSelected 
           ? 'bg-blue-50 dark:bg-blue-900/10' 
           : isFocused 

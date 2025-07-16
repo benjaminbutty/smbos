@@ -8,6 +8,7 @@ interface DateCellProps {
   isSelected: boolean;
   rowHovered: boolean;
   onFocus: () => void;
+  tableDensity: 'compact' | 'normal' | 'comfortable';
 }
 
 export function DateCell({ 
@@ -15,9 +16,23 @@ export function DateCell({
   onUpdate, 
   isSelected, 
   rowHovered, 
-  onFocus 
+  onFocus,
+  tableDensity
 }: DateCellProps) {
   const [isFocused, setIsFocused] = useState(false);
+  
+  // Get table density styles
+  const getDensityStyles = () => {
+    switch (tableDensity) {
+      case 'compact':
+        return 'min-h-[1.75rem]'; // 28px
+      case 'comfortable':
+        return 'min-h-[3rem]'; // 48px
+      case 'normal':
+      default:
+        return 'min-h-[2.25rem]'; // 36px
+    }
+  };
   
   // Format the date for display
   const formattedDate = React.useMemo(() => {
@@ -51,7 +66,7 @@ export function DateCell({
   return (
     <div
       className={`
-        w-full min-h-[2.25rem] h-full px-3 py-1.5 transition-colors relative database-cell-transition
+        w-full ${getDensityStyles()} h-full px-3 py-1.5 transition-colors relative database-cell-transition
         ${isSelected 
           ? 'bg-blue-50 dark:bg-blue-900/10' 
           : isFocused 

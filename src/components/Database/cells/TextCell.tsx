@@ -10,10 +10,24 @@ interface TextCellProps {
   isSelected: boolean;
   rowHovered: boolean;
   onFocus: () => void;
+  tableDensity: 'compact' | 'normal' | 'comfortable';
 }
 
-export function TextCell({ cell, onUpdate, isSelected, rowHovered, onFocus }: TextCellProps) {
+export function TextCell({ cell, onUpdate, isSelected, rowHovered, onFocus, tableDensity }: TextCellProps) {
   const [isFocused, setIsFocused] = useState(false);
+  
+  // Get table density styles
+  const getDensityStyles = () => {
+    switch (tableDensity) {
+      case 'compact':
+        return 'min-h-[1.75rem]'; // 28px
+      case 'comfortable':
+        return 'min-h-[3rem]'; // 48px
+      case 'normal':
+      default:
+        return 'min-h-[2.25rem]'; // 36px
+    }
+  };
   
   // Set up the text editor
   const editor = useEditor({
