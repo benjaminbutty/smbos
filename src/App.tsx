@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, MoreHorizontal, Trash2 } from 'lucide-react';
 import { DatabaseTable } from './components/Database/DatabaseTable';
 import { Header } from './components/UI/Header';
 import { Sidebar } from './components/UI/Sidebar';
@@ -9,8 +9,10 @@ import { AuthPage } from './pages/Auth';
 import { useAuth } from './contexts/AuthContext';
 
 function PageContent() {
-  const { pages, activePageId } = useDatabase();
+  const { pages, activePageId, deletePage } = useDatabase();
   const activePage = activePageId ? pages[activePageId] : null;
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
   
   if (!activePage) {
     return (
@@ -22,15 +24,82 @@ function PageContent() {
     );
   }
   
+  // Handle delete page
+  const handleDeletePage = async () => {
+    if (!activePage) return;
+    
+    const isConfirmed = window.confirm(
+      `Are you sure you want to delete the page "${activePage.name}"? This action cannot be undone.`
+    );
+    
+    if (isConfirmed) {
+      try {
+        await deletePage(activePage.id);
+        setShowMoreMenu(false);
+      } catch (error) {
+        console.error('Error deleting page:', error);
+      }
+    }
+  };
+  
+  // Close more menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(event.target as Node)) {
+        setShowMoreMenu(false);
+      }
+    };
+    
+    if (showMoreMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showMoreMenu]);
+  
   return (
-    <div className="w-full h-full flex items-center justify-center bg-gray-50 dark:bg-gray-800">
-      <div className="text-center p-8">
-        <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">
-          {activePage.name}
-        </h2>
-        <p className="text-gray-500 dark:text-gray-400">
-          This is an empty page. Page functionality will be implemented later.
-        </p>
+    <div className="h-full flex flex-col bg-white dark:bg-gray-900 overflow-hidden">
+      {/* Page Header Controls - matches table header */}
+      <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-900 sticky top-0 z-40">
+        <div className="flex items-center gap-2">
+          <h2 className="text-sm font-medium text-gray-900 dark:text-gray-100">
+            {activePage.name}
+          </h2>
+        </div>
+        <div className="flex items-center gap-2">
+          {/* More menu */}
+          <div className="relative" ref={moreMenuRef}>
+            <button 
+              className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"
+              onClick={() => setShowMoreMenu(!showMoreMenu)}
+            >
+              <MoreHorizontal size={16} />
+            </button>
+            
+            {showMoreMenu && (
+              <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg py-1 z-[70] border border-gray-200 dark:border-gray-700">
+                <button
+                  onClick={handleDeletePage}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                >
+                  <Trash2 size={14} />
+                  Delete Page
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+      
+      {/* Page Content */}
+      <div className="flex-1 flex items-center justify-center bg-gray-50 dark:bg-gray-800">
+        <div className="text-center p-8">
+          <p className="text-gray-500 dark:text-gray-400">
+            This is an empty page. Page functionality will be implemented later.
+          </p>
+        </div>
       </div>
     </div>
   );
