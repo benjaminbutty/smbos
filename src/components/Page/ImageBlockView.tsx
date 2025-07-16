@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Image, Upload, X, Loader2, Crop, Check } from 'lucide-react';
+import { Image, Upload, X, Loader2, Crop as CropIcon, Check } from 'lucide-react';
 import ReactCrop, { Crop, PixelCrop, centerCrop, makeAspectCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import { ImageBlock } from '../../types/blocks';
@@ -290,7 +290,7 @@ export function ImageBlockView({
             htmlFor={`image-upload-${block.id}`}
             className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-500 cursor-pointer text-sm flex items-center gap-2"
           >
-            <Crop className="w-4 h-4" />
+            <CropIcon className="w-4 h-4" />
             Choose & Crop Image
           </label>
           
