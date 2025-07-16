@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
+import { SlashCommandExtension } from '../../lib/tiptap-extensions/slash-commands';
 
 interface PageEditorProps {
   initialContent?: any;
@@ -11,6 +12,7 @@ interface PageEditorProps {
 export function PageEditor({ initialContent, onContentChange }: PageEditorProps) {
   const editor = useEditor({
     extensions: [
+      SlashCommandExtension,
       StarterKit.configure({
         // Configure heading levels
         heading: {
