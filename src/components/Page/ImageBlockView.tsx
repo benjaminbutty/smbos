@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Image, Upload, X } from 'lucide-react';
+import { Image, Upload, X, Loader2 } from 'lucide-react';
 import { ImageBlock } from '../../types/blocks';
+import { supabase } from '../../lib/supabase';
 
 interface ImageBlockViewProps {
   block: ImageBlock;
@@ -18,19 +19,56 @@ export function ImageBlockView({
   onFocus
 }: ImageBlockViewProps) {
   const [isEditing, setIsEditing] = useState(!block.url);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) {
-      // In a real implementation, you would upload to a storage service
-      // For now, we'll create a local URL
-      const url = URL.createObjectURL(file);
+    if (!file) return;
+
+    setIsUploading(true);
+    setUploadError(null);
+
+    try {
+      // Generate unique file path
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `images/${block.id}/${fileName}`;
+
+      // Upload file to Supabase Storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('page-images')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) {
+        throw new Error(`Upload failed: ${uploadError.message}`);
+      }
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('page-images')
+        .getPublicUrl(filePath);
+
+      if (!urlData.publicUrl) {
+        throw new Error('Failed to get public URL');
+      }
+
+      // Update block with permanent URL
       onChange({
         ...block,
-        url,
+        url: urlData.publicUrl,
         alt: file.name
       });
+
       setIsEditing(false);
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      setUploadError(error instanceof Error ? error.message : 'Upload failed');
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -51,28 +89,47 @@ export function ImageBlockView({
       >
         <div className="flex flex-col items-center gap-2">
           <div className="w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-            <Upload className="w-6 h-6 text-gray-500 dark:text-gray-400" />
+            {isUploading ? (
+              <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />
+            ) : (
+              <Upload className="w-6 h-6 text-gray-500 dark:text-gray-400" />
+            )}
           </div>
           <div>
-            <p className="text-gray-700 dark:text-gray-300 font-medium">Upload an image</p>
+            <p className="text-gray-700 dark:text-gray-300 font-medium">
+              {isUploading ? 'Uploading...' : 'Upload an image'}
+            </p>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              Click to browse or drag and drop
+              {isUploading ? 'Please wait' : 'Click to browse or drag and drop'}
             </p>
           </div>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleImageUpload}
-            className="hidden"
-            id={`image-upload-${block.id}`}
-          />
-          <label
-            htmlFor={`image-upload-${block.id}`}
-            className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-500 cursor-pointer text-sm"
-          >
-            Choose Image
-          </label>
-          {isFocused && (
+          
+          {uploadError && (
+            <div className="text-xs text-red-600 dark:text-red-400 mt-1 max-w-full break-words">
+              {uploadError}
+            </div>
+          )}
+          
+          {!isUploading && (
+            <>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="hidden"
+                id={`image-upload-${block.id}`}
+                disabled={isUploading}
+              />
+              <label
+                htmlFor={`image-upload-${block.id}`}
+                className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-500 cursor-pointer text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Choose Image
+              </label>
+            </>
+          )}
+          
+          {isFocused && !isUploading && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
