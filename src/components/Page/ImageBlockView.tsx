@@ -44,12 +44,12 @@ export function ImageBlockView({
   if (isEditing || !block.url) {
     return (
       <div 
-        className={`w-full border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 text-center ${
+        className={`w-full border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center ${
           isFocused ? 'border-blue-500 dark:border-blue-400' : ''
         }`}
         onClick={onFocus}
       >
-        <div className="flex flex-col items-center gap-4">
+        <div className="flex flex-col items-center gap-3">
           <div className="w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
             <Upload className="w-6 h-6 text-gray-500 dark:text-gray-400" />
           </div>
@@ -131,11 +131,11 @@ export function ImageBlockView({
             value={block.caption || ''}
             onChange={(e) => handleCaptionChange(e.target.value)}
             placeholder="Add a caption..."
-            className="w-full text-sm text-gray-600 dark:text-gray-400 bg-transparent border-none focus:outline-none focus:ring-0 placeholder-gray-400 dark:placeholder-gray-500"
+            className="w-full text-sm text-gray-600 dark:text-gray-400 bg-transparent border-none focus:outline-none focus:ring-0 placeholder-gray-400 dark:placeholder-gray-500 py-1"
           />
         ) : (
           block.caption && (
-            <p className="text-sm text-gray-600 dark:text-gray-400 text-center">
+            <p className="text-sm text-gray-600 dark:text-gray-400 text-center py-1">
               {block.caption}
             </p>
           )
@@ -143,4 +143,3 @@ export function ImageBlockView({
       </div>
     </div>
   );
-}

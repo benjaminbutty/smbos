@@ -46,14 +46,14 @@ export function SortableBlockItem({
     <div
       ref={setNodeRef}
       style={style}
-      className={`group relative ${isDragging ? 'opacity-50' : ''}`}
+      className={`group relative my-1.5 first:mt-0 last:mb-0 ${isDragging ? 'opacity-50' : ''}`}
     >
       <div className="flex items-start gap-2">
         {/* Drag handle */}
         <div
           {...attributes}
           {...listeners}
-          className="flex-shrink-0 w-6 h-6 mt-2 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing"
+          className="flex-shrink-0 w-6 h-6 mt-1 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing"
         >
           <GripVertical className="w-4 h-4 text-gray-400 dark:text-gray-500" />
         </div>

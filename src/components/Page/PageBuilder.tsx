@@ -43,6 +43,11 @@ export function PageBuilder({ blocks, onBlocksChange }: PageBuilderProps) {
     })
   );
 
+  // Drag and drop configuration for smooth animations
+  const dragOverlay = {
+    dropAnimation: null, // Disable drop animation for cleaner experience
+  };
+
   // Save state to history
   const saveToHistory = useCallback((newBlocks: Block[]) => {
     const newHistory = history.slice(0, historyIndex + 1);
@@ -206,7 +211,7 @@ export function PageBuilder({ blocks, onBlocksChange }: PageBuilderProps) {
           modifiers={[restrictToVerticalAxis, restrictToParentElement]}
         >
           <SortableContext items={blocks.map(block => block.id)} strategy={verticalListSortingStrategy}>
-            <div className="space-y-2">
+            <div>
               {blocks.map((block) => (
                 <SortableBlockItem
                   key={block.id}
