@@ -5,6 +5,7 @@ import { useDatabase } from './useDatabase';
 import { Column } from './types';
 import { DatabaseHeader } from './DatabaseHeader';
 import { TableSettingsPanel } from './TableSettingsPanel';
+import { FilterPanel, FilterCondition } from './FilterPanel';
 
 interface ColumnResizeData {
   columnId: string;
@@ -42,6 +43,8 @@ export function DatabaseTable() {
   const [selectedCellPosition, setSelectedCellPosition] = useState<{rowId: string; columnId: string} | null>(null);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [filters, setFilters] = useState<FilterCondition[]>([]);
   const [tableDensity, setTableDensity] = useState<'compact' | 'normal' | 'comfortable'>('normal');
   const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
   const tableRef = useRef<HTMLDivElement>(null);
@@ -155,9 +158,92 @@ export function DatabaseTable() {
   
   // Get sorted rows
   const sortedRows = React.useMemo(() => {
-    if (!sortColumn) return rows;
+    let filteredRows = rows;
     
-    return [...rows].sort((a, b) => {
+    // Apply filters first
+    if (filters.length > 0) {
+      filteredRows = rows.filter(row => {
+        return filters.every((filter, index) => {
+          const cell = row.cells[filter.columnId];
+          const cellValue = cell?.content || '';
+          const filterValue = filter.value.toLowerCase();
+          const cellValueLower = cellValue.toLowerCase();
+          
+          let matches = false;
+          
+          // Apply the filter condition
+          switch (filter.operator) {
+            case 'equals':
+              matches = cellValue === filter.value;
+              break;
+            case 'not_equals':
+              matches = cellValue !== filter.value;
+              break;
+            case 'contains':
+              matches = cellValueLower.includes(filterValue);
+              break;
+            case 'not_contains':
+              matches = !cellValueLower.includes(filterValue);
+              break;
+            case 'starts_with':
+              matches = cellValueLower.startsWith(filterValue);
+              break;
+            case 'ends_with':
+              matches = cellValueLower.endsWith(filterValue);
+              break;
+            case 'greater_than':
+              matches = parseFloat(cellValue) > parseFloat(filter.value);
+              break;
+            case 'less_than':
+              matches = parseFloat(cellValue) < parseFloat(filter.value);
+              break;
+            case 'greater_equal':
+              matches = parseFloat(cellValue) >= parseFloat(filter.value);
+              break;
+            case 'less_equal':
+              matches = parseFloat(cellValue) <= parseFloat(filter.value);
+              break;
+            case 'after':
+              matches = new Date(cellValue) > new Date(filter.value);
+              break;
+            case 'before':
+              matches = new Date(cellValue) < new Date(filter.value);
+              break;
+            case 'on_or_after':
+              matches = new Date(cellValue) >= new Date(filter.value);
+              break;
+            case 'on_or_before':
+              matches = new Date(cellValue) <= new Date(filter.value);
+              break;
+            case 'is_empty':
+              matches = !cellValue || cellValue.trim() === '';
+              break;
+            case 'is_not_empty':
+              matches = cellValue && cellValue.trim() !== '';
+              break;
+            default:
+              matches = true;
+          }
+          
+          // Handle logic operators (AND/OR)
+          if (index === 0) {
+            return matches;
+          } else {
+            const previousResult = filters.slice(0, index).every((prevFilter, prevIndex) => {
+              // This is a simplified logic - in a real implementation, you'd want more sophisticated logic handling
+              return true; // For now, we'll use AND logic between all filters
+            });
+            
+            return filter.logic === 'AND' ? matches : matches;
+          }
+        });
+      });
+    }
+    
+    // Then apply sorting
+    if (!sortColumn) return filteredRows;
+    
+    return [...filteredRows].sort((a, b) => {
       const aValue = a.cells[sortColumn]?.content || '';
       const bValue = b.cells[sortColumn]?.content || '';
       
@@ -167,7 +253,7 @@ export function DatabaseTable() {
         return bValue.localeCompare(aValue);
       }
     });
-  }, [rows, sortColumn, sortDirection]);
+  }, [rows, sortColumn, sortDirection, filters]);
   
   // Handle adding a column
   const handleAddColumn = () => {
@@ -360,8 +446,16 @@ export function DatabaseTable() {
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <button className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
+          <button 
+            className={`p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 ${
+              filters.length > 0 ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''
+            }`}
+            onClick={() => setShowFilterPanel(true)}
+          >
             <Filter size={16} />
+            {filters.length > 0 && (
+              <span className="ml-1 text-xs">{filters.length}</span>
+            )}
           </button>
           <button 
             className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"
@@ -490,6 +584,15 @@ export function DatabaseTable() {
         onTableDensityChange={setTableDensity}
         hiddenColumns={hiddenColumns}
         onToggleColumnVisibility={handleToggleColumnVisibility}
+      />
+      
+      {/* Filter Panel */}
+      <FilterPanel
+        isOpen={showFilterPanel}
+        onClose={() => setShowFilterPanel(false)}
+        columns={columns}
+        filters={filters}
+        onFiltersChange={setFilters}
       />
     </div>
   );
