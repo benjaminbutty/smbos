@@ -70,14 +70,13 @@ export const useDatabase = create<DatabaseState>((set, get) => ({
       
       const tables: Record<string, Table> = {};
       const pages: Record<string, Page> = {};
-      let activeTableId = get().activeTableId;
-      let activePageId = get().activePageId;
+      const currentState = get();
+      let activeTableId = currentState.activeTableId;
+      let activePageId = currentState.activePageId;
       
       // Process pages
       if (pagesData.length > 0) {
         for (const pageData of pagesData) {
-          if (!activeTableId && !activePageId) activePageId = pageData.id;
-          
           pages[pageData.id] = {
             id: pageData.id,
             name: pageData.name,
@@ -92,8 +91,6 @@ export const useDatabase = create<DatabaseState>((set, get) => ({
       // If we have tables, process them
       if (tablesData.length > 0) {
         for (const tableData of tablesData) {
-          if (!activeTableId && !activePageId) activeTableId = tableData.id;
-          
           // Fetch columns for this table
           const { data: columnsData, error: columnsError } = await supabase
             .from('database_columns')
@@ -181,9 +178,37 @@ export const useDatabase = create<DatabaseState>((set, get) => ({
         }
       }
       
+      // Determine active item with proper priority logic
+      // 1. Try to maintain current active table if it still exists
+      if (activeTableId && !tables[activeTableId]) {
+        activeTableId = null;
+      }
+      
+      // 2. Try to maintain current active page if it still exists
+      if (activePageId && !pages[activePageId]) {
+        activePageId = null;
+      }
+      
+      // 3. If no active item, set defaults
+      if (!activeTableId && !activePageId) {
+        // First try to activate the first table
+        const firstTableId = Object.keys(tables)[0];
+        if (firstTableId) {
+          activeTableId = firstTableId;
+        } else {
+          // If no tables, try to activate the first page
+          const firstPageId = Object.keys(pages)[0];
+          if (firstPageId) {
+            activePageId = firstPageId;
+          }
+        }
+      }
+      
       set({ 
         tables, 
+        pages,
         activeTableId, 
+        activePageId,
         isLoading: false,
         error: null,
         selectedRows: Object.keys(tables).reduce((acc, tableId) => {
