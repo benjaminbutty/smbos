@@ -1,3 +1,5 @@
+import { Block } from '../../types/blocks';
+
 // Update types.ts to expand column types
 export interface Column {
   id: string;
@@ -69,5 +71,5 @@ export interface Page {
   user_id: string;
   created_at: string;
   updated_at: string;
-  content: any; // JSON content
+  blocks: Block[]; // Array of block objects
 }

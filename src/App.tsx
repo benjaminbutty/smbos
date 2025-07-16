@@ -7,10 +7,10 @@ import { Sidebar } from './components/UI/Sidebar';
 import { useDatabase } from './components/Database/useDatabase';
 import { AuthPage } from './pages/Auth';
 import { useAuth } from './contexts/AuthContext';
-import { PageEditor } from './components/Page/PageEditor';
+import { PageBuilder } from './components/Page/PageBuilder';
 
 function PageContent() {
-  const { pages, activePageId, deletePage, updatePageContent } = useDatabase();
+  const { pages, activePageId, deletePage, updatePageBlocks } = useDatabase();
   const activePage = activePageId ? pages[activePageId] : null;
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
@@ -62,12 +62,12 @@ function PageContent() {
   
   // Handle content changes with debouncing to avoid too many database calls
   const handleContentChange = React.useCallback(
-    debounce((content: any) => {
+    debounce((blocks: any) => {
       if (activePage) {
-        updatePageContent(activePage.id, content);
+        updatePageBlocks(activePage.id, blocks);
       }
     }, 1000), // Save after 1 second of no changes
-    [activePage, updatePageContent]
+    [activePage, updatePageBlocks]
   );
   
   return (
@@ -106,9 +106,9 @@ function PageContent() {
       
       {/* Page Content */}
       <div className="flex-1 bg-white dark:bg-gray-900 overflow-auto">
-        <PageEditor
-          initialContent={activePage.content}
-          onContentChange={handleContentChange}
+        <PageBuilder
+          blocks={activePage.blocks}
+          onBlocksChange={handleContentChange}
         />
       </div>
     </div>

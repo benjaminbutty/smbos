@@ -12,10 +12,12 @@ import {
   Quote, 
   Code, 
   Minus,
-  CheckSquare
+  CheckSquare,
+  Image,
+  Database
 } from 'lucide-react';
 
-const getSuggestionItems = ({ query }: { query: string }): SlashCommandItem[] => {
+const getSuggestionItems = ({ query, onTransformBlock }: { query: string; onTransformBlock?: (type: 'image' | 'record-link') => void }): SlashCommandItem[] => {
   const items: SlashCommandItem[] = [
     {
       title: 'Text',
@@ -79,6 +81,28 @@ const getSuggestionItems = ({ query }: { query: string }): SlashCommandItem[] =>
       icon: Minus,
       command: () => {},
       keywords: ['divider', 'separator', 'hr', 'horizontal']
+    },
+    {
+      title: 'Image',
+      description: 'Upload and display an image.',
+      icon: Image,
+      command: () => {
+        if (onTransformBlock) {
+          onTransformBlock('image');
+        }
+      },
+      keywords: ['image', 'picture', 'photo', 'upload']
+    },
+    {
+      title: 'Page Link',
+      description: 'Link to a database record.',
+      icon: Database,
+      command: () => {
+        if (onTransformBlock) {
+          onTransformBlock('record-link');
+        }
+      },
+      keywords: ['link', 'page', 'record', 'database', 'reference']
     }
   ];
 
@@ -101,11 +125,15 @@ export const SlashCommandExtension = Extension.create({
 
   addOptions() {
     return {
+      onTransformBlock: null,
       suggestion: {
         char: '/',
         command: ({ editor, range, props }: { editor: any; range: any; props: SlashCommandItem }) => {
           // Remove the slash and any query text
           editor.chain().focus().deleteRange(range).run();
+
+          // Execute the command
+          props.command();
 
           // Execute the appropriate command based on the selected item
           switch (props.title) {
@@ -136,6 +164,10 @@ export const SlashCommandExtension = Extension.create({
             case 'Divider':
               editor.chain().focus().setHorizontalRule().run();
               break;
+            case 'Image':
+            case 'Page Link':
+              // These are handled by the command function above
+              break;
           }
         },
       },
@@ -147,7 +179,10 @@ export const SlashCommandExtension = Extension.create({
       Suggestion({
         editor: this.editor,
         ...this.options.suggestion,
-        items: getSuggestionItems,
+        items: ({ query }: { query: string }) => getSuggestionItems({ 
+          query, 
+          onTransformBlock: this.options.onTransformBlock 
+        }),
         render: () => {
           let component: ReactRenderer<SlashCommandsRef>;
           let popup: any;

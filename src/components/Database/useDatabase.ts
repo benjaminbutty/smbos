@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '../../lib/supabase';
 import { Column, Row, Cell, Table } from './types';
+import { Block, createTextBlock } from '../../types/blocks';
 
 export interface DatabaseState {
   tables: Record<string, Table>;
@@ -77,13 +78,31 @@ export const useDatabase = create<DatabaseState>((set, get) => ({
       // Process pages
       if (pagesData.length > 0) {
         for (const pageData of pagesData) {
+          // Parse blocks from content, ensuring we have at least one text block
+          let blocks: Block[] = [];
+          try {
+            if (pageData.content && Array.isArray(pageData.content)) {
+              blocks = pageData.content;
+            } else if (pageData.content && typeof pageData.content === 'object') {
+              // Legacy content - convert to single text block
+              blocks = [createTextBlock(pageData.content)];
+            }
+          } catch (error) {
+            console.warn('Failed to parse page blocks:', error);
+          }
+          
+          // Ensure we always have at least one text block
+          if (blocks.length === 0) {
+            blocks = [createTextBlock()];
+          }
+          
           pages[pageData.id] = {
             id: pageData.id,
             name: pageData.name,
             user_id: pageData.user_id,
             created_at: pageData.created_at,
             updated_at: pageData.updated_at,
-            content: pageData.content || {}
+            blocks: blocks
           };
         }
       }
@@ -406,7 +425,7 @@ export const useDatabase = create<DatabaseState>((set, get) => ({
         .insert({ 
           name, 
           user_id: userId,
-          content: {}
+          content: [createTextBlock()]
         })
         .select()
         .single();
@@ -419,7 +438,7 @@ export const useDatabase = create<DatabaseState>((set, get) => ({
         user_id: pageData.user_id,
         created_at: pageData.created_at,
         updated_at: pageData.updated_at,
-        content: pageData.content || {}
+        blocks: [createTextBlock()]
       };
       
       set(state => ({
@@ -909,12 +928,12 @@ export const useDatabase = create<DatabaseState>((set, get) => ({
     }
   },
 
-  updatePageContent: async (pageId: string, content: any) => {
+  updatePageBlocks: async (pageId: string, blocks: Block[]) => {
     try {
       const { error } = await supabase
         .from('pages')
         .update({ 
-          content: content,
+          content: blocks,
           updated_at: new Date().toISOString()
         })
         .eq('id', pageId);
@@ -927,13 +946,13 @@ export const useDatabase = create<DatabaseState>((set, get) => ({
           ...state.pages,
           [pageId]: {
             ...state.pages[pageId],
-            content: content,
+            blocks: blocks,
             updated_at: new Date().toISOString()
           },
         },
       }));
     } catch (error) {
-      console.error('Error updating page content:', error);
+      console.error('Error updating page blocks:', error);
       // Don't set global error state for content updates to avoid disrupting the editing experience
     }
   },
