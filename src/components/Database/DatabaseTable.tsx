@@ -4,6 +4,7 @@ import { DatabaseRow } from './DatabaseRow';
 import { useDatabase } from './useDatabase';
 import { Column } from './types';
 import { DatabaseHeader } from './DatabaseHeader';
+import { TableSettingsPanel } from './TableSettingsPanel';
 
 interface ColumnResizeData {
   columnId: string;
@@ -40,28 +41,64 @@ export function DatabaseTable() {
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
   const [selectedCellPosition, setSelectedCellPosition] = useState<{rowId: string; columnId: string} | null>(null);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [showSettingsPanel, setShowSettingsPanel] = useState(false);
+  const [tableDensity, setTableDensity] = useState<'compact' | 'normal' | 'comfortable'>('normal');
+  const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
   const tableRef = useRef<HTMLDivElement>(null);
   const moreMenuRef = useRef<HTMLDivElement>(null);
+  
+  // Get visible columns (excluding hidden ones)
+  const visibleColumns = React.useMemo(() => {
+    return columns.filter(col => !hiddenColumns.includes(col.id));
+  }, [columns, hiddenColumns]);
   
   // Calculate total width
   const totalTableWidth = React.useMemo(() => {
     let total = 10; // Checkbox column width
-    columns.forEach(col => {
+    visibleColumns.forEach(col => {
       total += columnWidths[col.id] || 150;
     });
     return total;
-  }, [columns, columnWidths]);
+  }, [visibleColumns, columnWidths]);
   
   // Initialize column widths
   useEffect(() => {
-    if (columns.length > 0) {
+    if (visibleColumns.length > 0) {
       const initialWidths: Record<string, number> = {};
-      columns.forEach(column => {
+      visibleColumns.forEach(column => {
         initialWidths[column.id] = columnWidths[column.id] || 150;
       });
       setColumnWidths(initialWidths);
     }
-  }, [columns]);
+  }, [visibleColumns]);
+  
+  // Get table density styles
+  const getDensityStyles = () => {
+    switch (tableDensity) {
+      case 'compact':
+        return 'min-h-[1.75rem]'; // 28px
+      case 'comfortable':
+        return 'min-h-[3rem]'; // 48px
+      case 'normal':
+      default:
+        return 'min-h-[2.25rem]'; // 36px
+    }
+  };
+  
+  // Handle column visibility toggle
+  const handleToggleColumnVisibility = (columnId: string) => {
+    setHiddenColumns(prev => 
+      prev.includes(columnId)
+        ? prev.filter(id => id !== columnId)
+        : [...prev, columnId]
+    );
+  };
+  
+  // Handle column reordering (placeholder - would need more complex implementation)
+  const handleReorderColumns = (dragIndex: number, hoverIndex: number) => {
+    // This would require updating the column order in the database
+    console.log('Reorder columns:', dragIndex, 'to', hoverIndex);
+  };
   
   // Handle column sorting
   const handleSort = (columnId: string) => {
@@ -211,9 +248,9 @@ export function DatabaseTable() {
     if (!table) return;
     
     // Create CSV content
-    const headers = columns.map(col => col.name).join(',');
+    const headers = visibleColumns.map(col => col.name).join(',');
     const csvRows = rows.map(row => 
-      columns.map(col => {
+      visibleColumns.map(col => {
         const cell = row.cells[col.id];
         const content = cell?.content || '';
         // Escape quotes and wrap in quotes if contains comma
@@ -326,7 +363,10 @@ export function DatabaseTable() {
           <button className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
             <Filter size={16} />
           </button>
-          <button className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">
+          <button 
+            className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"
+            onClick={() => setShowSettingsPanel(true)}
+          >
             <Settings size={16} />
           </button>
           
@@ -378,7 +418,7 @@ export function DatabaseTable() {
           {/* Table Headers - Sticky in the scrollable area */}
           <div className="sticky top-0 z-10">
             <DatabaseHeader 
-              columns={columns}
+              columns={visibleColumns}
               tableId={activeTableId || ''}
               onUpdateColumn={handleUpdateColumn}
               onDeleteColumn={handleDeleteColumn}
@@ -394,7 +434,7 @@ export function DatabaseTable() {
                 <DatabaseRow
                   key={row.id}
                   row={row}
-                  columns={columns}
+                  columns={visibleColumns}
                   isSelected={tableSelectedRows.includes(row.id)}
                   onSelect={() => handleToggleRowSelection(row.id)}
                   onCellUpdate={(columnId, value) => handleUpdateCell(row.id, columnId, value)}
@@ -437,6 +477,19 @@ export function DatabaseTable() {
           {tableSelectedRows.length > 0 ? `${tableSelectedRows.length} of ${rows.length} selected` : `${rows.length} ${rows.length === 1 ? 'row' : 'rows'}`}
         </div>
       </div>
+      
+      {/* Settings Panel */}
+      <TableSettingsPanel
+        isOpen={showSettingsPanel}
+        onClose={() => setShowSettingsPanel(false)}
+        columns={columns}
+        onUpdateColumn={handleUpdateColumn}
+        onReorderColumns={handleReorderColumns}
+        tableDensity={tableDensity}
+        onTableDensityChange={setTableDensity}
+        hiddenColumns={hiddenColumns}
+        onToggleColumnVisibility={handleToggleColumnVisibility}
+      />
     </div>
   );
 }

@@ -69,7 +69,7 @@ export function TextCell({ cell, onUpdate, isSelected, rowHovered, onFocus }: Te
   return (
     <div
       className={`
-        w-full min-h-[2.25rem] h-full px-3 py-1.5 transition-colors relative database-cell-transition
+        w-full ${getDensityStyles()} h-full px-3 py-1.5 transition-colors relative database-cell-transition
         ${isSelected 
           ? 'bg-blue-50 dark:bg-blue-900/10' 
           : isFocused 
