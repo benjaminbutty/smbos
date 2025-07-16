@@ -249,7 +249,7 @@ export function PageBuilder({ blocks, onBlocksChange }: PageBuilderProps) {
       </div>
 
       {/* Content */}
-      <div className="pl-16 pr-6 py-4">
+      <div className="pl-24 pr-6 py-4">
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -281,7 +281,7 @@ export function PageBuilder({ blocks, onBlocksChange }: PageBuilderProps) {
         <div className="mt-4">
           <button
             onClick={handleAddBlock}
-            className="flex items-center gap-2 px-3 py-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors ml-2"
+            className="flex items-center gap-2 px-3 py-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors ml-4"
           >
             <Plus className="w-4 h-4" />
             <span className="text-sm">Add a block</span>
