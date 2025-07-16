@@ -436,7 +436,7 @@ export function DatabaseTable() {
       ref={tableRef}
     >
       {/* Table Header Controls - Sticky */}
-      <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-900 sticky top-0 z-10">
+      <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-900 sticky top-0 z-30">
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-medium text-gray-900 dark:text-gray-100">
             {table.name}
